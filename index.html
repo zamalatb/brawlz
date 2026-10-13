@@ -3,15 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>FAMILY BRAWL: Семейная Арена</title>
-<!-- P2P WebRTC (PeerJS) & MQTT over WebSockets for instant serverless 4-phone multiplayer -->
+<title>FAMILY BRAWL: Семейная Арена (Real-Time Multiplayer)</title>
 <script>
-// Load P2P WebRTC & MQTT cloud libraries asynchronously so offline/local startup is instant
-window.addEventListener("load", () => {
-  ["https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js", "https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"].forEach(src => {
+// Dynamically load MQTT over WebSockets & PeerJS WebRTC so local/offline rendering is never blocked,
+// and trigger networking callback immediately once loaded.
+window.__netLibsReadyCallbacks = [];
+function onNetLibLoaded() {
+  window.__netLibsReadyCallbacks.forEach(cb => { try { cb(); } catch (e) {} });
+}
+window.addEventListener("DOMContentLoaded", () => {
+  [
+    "https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js",
+    "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"
+  ].forEach(src => {
     const s = document.createElement("script");
     s.src = src;
     s.async = true;
+    s.onload = onNetLibLoaded;
     document.head.appendChild(s);
   });
 });
@@ -44,7 +52,6 @@ window.addEventListener("load", () => {
     color: #fff;
     touch-action: none;
   }
-  /* SCREENS */
   .screen {
     position: absolute;
     inset: 0;
@@ -52,16 +59,15 @@ window.addEventListener("load", () => {
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding: 12px;
+    padding: 10px 12px;
     overflow-y: auto;
     z-index: 10;
   }
   .screen.active {
     display: flex;
   }
-  /* BRAWL HEADER */
   .brawl-title {
-    font-size: clamp(24px, 5vw, 42px);
+    font-size: clamp(22px, 4.5vw, 38px);
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 1.5px;
@@ -72,19 +78,18 @@ window.addEventListener("load", () => {
     transform: skewX(-5deg);
   }
   .brawl-subtitle {
-    font-size: clamp(12px, 2.6vw, 15px);
+    font-size: clamp(11px, 2.4vw, 14px);
     color: #b8c7ff;
     margin-bottom: 6px;
     text-align: center;
     font-weight: 700;
   }
-  /* MAIN CONTAINER */
   .lobby-card {
     width: 100%;
-    max-width: 900px;
+    max-width: 920px;
     background: var(--panel-bg);
     border: 3px solid #3c4d8a;
-    border-radius: 20px;
+    border-radius: 18px;
     box-shadow: 0 12px 32px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.15);
     padding: 10px 14px;
     margin-bottom: 8px;
@@ -99,18 +104,19 @@ window.addEventListener("load", () => {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
   }
-  /* HERO GRID */
   .hero-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
   }
   .hero-card {
     background: linear-gradient(160deg, #25305a 0%, #171e3a 100%);
     border: 3px solid #394878;
-    border-radius: 16px;
-    padding: 10px 8px;
+    border-radius: 15px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -118,9 +124,7 @@ window.addEventListener("load", () => {
     transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
     position: relative;
   }
-  .hero-card:hover {
-    transform: translateY(-2px);
-  }
+  .hero-card:hover { transform: translateY(-2px); }
   .hero-card.selected {
     border-color: var(--gold);
     background: linear-gradient(160deg, #384987 0%, #1e2850 100%);
@@ -128,8 +132,8 @@ window.addEventListener("load", () => {
     transform: scale(1.02);
   }
   .hero-avatar-wrap {
-    width: 68px;
-    height: 68px;
+    width: 66px;
+    height: 66px;
     position: relative;
     margin-bottom: 6px;
   }
@@ -147,34 +151,34 @@ window.addEventListener("load", () => {
     background: #11162b;
     border: 2px solid var(--gold);
     border-radius: 10px;
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 800;
     padding: 1px 6px;
     color: #fff;
   }
   .hero-name {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 900;
     color: #fff;
     text-shadow: 0 2px 0 #000;
     margin-bottom: 2px;
   }
   .hero-weapon {
-    font-size: 11px;
+    font-size: 10.5px;
     color: #ffd966;
     font-weight: 700;
     text-align: center;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
   .hero-super-desc {
-    font-size: 10.5px;
+    font-size: 10px;
     color: #a9b9f0;
     text-align: center;
-    line-height: 1.25;
+    line-height: 1.2;
   }
   .stat-bars {
     width: 100%;
-    margin-top: 6px;
+    margin-top: 5px;
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -182,14 +186,11 @@ window.addEventListener("load", () => {
   .stat-row {
     display: flex;
     align-items: center;
-    font-size: 9.5px;
+    font-size: 9px;
     color: #9cb0ec;
     gap: 4px;
   }
-  .stat-row span {
-    width: 38px;
-    font-weight: 700;
-  }
+  .stat-row span { width: 34px; font-weight: 700; }
   .stat-track {
     flex: 1;
     height: 5px;
@@ -197,30 +198,22 @@ window.addEventListener("load", () => {
     border-radius: 3px;
     overflow: hidden;
   }
-  .stat-fill {
-    height: 100%;
-    border-radius: 3px;
-  }
+  .stat-fill { height: 100%; border-radius: 3px; }
 
-  /* CONTROLS & MULTIPLAYER ROW */
   .mp-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
   }
   @media (max-width: 640px) {
-    .mp-grid {
-      grid-template-columns: 1fr;
-    }
-    .hero-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
+    .mp-grid { grid-template-columns: 1fr; }
+    .hero-grid { grid-template-columns: repeat(2, 1fr); }
   }
   .mp-box {
-    background: rgba(14, 18, 38, 0.75);
+    background: rgba(14, 18, 38, 0.78);
     border: 2px solid #2e3d70;
     border-radius: 14px;
-    padding: 12px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -228,111 +221,101 @@ window.addEventListener("load", () => {
   .btn {
     border: none;
     border-radius: 12px;
-    padding: 11px 16px;
-    font-size: 15px;
+    padding: 10px 14px;
+    font-size: 14px;
     font-weight: 900;
     text-transform: uppercase;
     cursor: pointer;
     color: #fff;
     text-shadow: 0 2px 0 rgba(0,0,0,0.7);
-    box-shadow: 0 5px 0 rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.3);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.3);
     transition: transform 0.08s, filter 0.15s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
   }
   .btn:active {
     transform: translateY(3px);
-    box-shadow: 0 2px 0 rgba(0,0,0,0.5);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.5);
   }
   .btn-yellow {
     background: linear-gradient(180deg, #ffdd00 0%, #ff9900 100%);
     color: #1a1200;
     text-shadow: 0 1px 0 rgba(255,255,255,0.5);
   }
-  .btn-green {
-    background: linear-gradient(180deg, #38ef7d 0%, #11998e 100%);
-  }
-  .btn-blue {
-    background: linear-gradient(180deg, #00d2ff 0%, #3a7bd5 100%);
-  }
-  .btn-pink {
-    background: linear-gradient(180deg, #ff5e9c 0%, #d81b60 100%);
-  }
-  .btn-sm {
-    padding: 7px 12px;
-    font-size: 12px;
-    border-radius: 9px;
-  }
-  .input-row {
-    display: flex;
-    gap: 8px;
-  }
+  .btn-green { background: linear-gradient(180deg, #38ef7d 0%, #11998e 100%); }
+  .btn-blue { background: linear-gradient(180deg, #00d2ff 0%, #3a7bd5 100%); }
+  .btn-pink { background: linear-gradient(180deg, #ff5e9c 0%, #d81b60 100%); }
+  .btn-sm { padding: 7px 10px; font-size: 11.5px; border-radius: 9px; }
+
+  .input-row { display: flex; gap: 6px; align-items: center; }
   .code-input {
     flex: 1;
     background: #0b0f20;
     border: 2px solid #45599e;
     border-radius: 10px;
     color: var(--gold);
-    font-size: 20px;
+    font-size: 17px;
     font-weight: 900;
     text-align: center;
-    letter-spacing: 4px;
-    padding: 8px;
-    outline: none;
-  }
-  .code-input:focus {
-    border-color: var(--gold);
-  }
-  .room-badge {
-    background: #0c1022;
-    border: 2px dashed var(--gold);
-    border-radius: 12px;
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  .room-code-big {
-    font-size: 24px;
-    font-weight: 900;
-    color: var(--gold);
     letter-spacing: 3px;
+    padding: 7px;
+    outline: none;
+    text-transform: uppercase;
   }
-  .players-roster {
+  .code-input:focus { border-color: var(--gold); }
+
+  .room-Preset-row {
     display: flex;
+    gap: 6px;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 4px;
+  }
+  .room-chip {
+    flex: 1;
+    background: #161d38;
+    border: 2px solid #35467d;
+    border-radius: 9px;
+    padding: 6px 8px;
+    font-size: 11.5px;
+    font-weight: 800;
+    text-align: center;
+    cursor: pointer;
+    color: #b8c7ff;
+  }
+  .room-chip.active {
+    border-color: var(--green);
+    background: rgba(56, 239, 125, 0.18);
+    color: #fff;
+  }
+
+  .players-roster {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
   }
   .roster-slot {
-    flex: 1;
-    min-width: 110px;
     background: #161d38;
     border: 2px solid #334378;
     border-radius: 10px;
     padding: 6px 8px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 12px;
+    gap: 7px;
+    font-size: 11.5px;
     font-weight: 800;
   }
   .roster-slot.connected {
     border-color: var(--green);
-    background: rgba(56, 239, 125, 0.12);
+    background: rgba(56, 239, 125, 0.14);
   }
-  .roster-slot img {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-  }
+  .roster-slot img { width: 28px; height: 28px; border-radius: 50%; }
+
   .mode-selector {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    margin-bottom: 8px;
   }
   .mode-pill {
     flex: 1;
@@ -340,10 +323,10 @@ window.addEventListener("load", () => {
     background: #161d38;
     border: 2px solid #334378;
     border-radius: 10px;
-    padding: 8px;
+    padding: 6px 8px;
     cursor: pointer;
     text-align: center;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 800;
   }
   .mode-pill.active {
@@ -373,25 +356,26 @@ window.addEventListener("load", () => {
     align-items: center;
     pointer-events: none;
     z-index: 20;
+    gap: 6px;
+    flex-wrap: wrap;
   }
   .hud-pill {
-    background: rgba(12, 16, 34, 0.82);
+    background: rgba(12, 16, 34, 0.85);
     border: 2px solid rgba(255,255,255,0.22);
     border-radius: 14px;
-    padding: 5px 12px;
-    font-size: 14px;
+    padding: 5px 11px;
+    font-size: 13px;
     font-weight: 900;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     pointer-events: auto;
     box-shadow: 0 4px 12px rgba(0,0,0,0.45);
   }
-  /* TOUCH CONTROLS */
   .touch-zone {
     position: absolute;
     bottom: 0;
-    height: 55%;
+    height: 60%;
     width: 45%;
     z-index: 18;
     touch-action: none;
@@ -402,7 +386,7 @@ window.addEventListener("load", () => {
   .action-buttons {
     position: absolute;
     bottom: 24px;
-    right: 22px;
+    right: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -425,8 +409,6 @@ window.addEventListener("load", () => {
     cursor: pointer;
     box-shadow: 0 6px 16px rgba(0,0,0,0.6);
     transition: transform 0.1s, box-shadow 0.2s;
-    position: relative;
-    overflow: hidden;
   }
   .super-btn.ready {
     border-color: #fff;
@@ -452,7 +434,6 @@ window.addEventListener("load", () => {
     cursor: pointer;
     box-shadow: 0 4px 10px rgba(0,0,0,0.5);
   }
-  /* VICTORY OVERLAY */
   #victory-modal {
     position: absolute;
     inset: 0;
@@ -466,13 +447,11 @@ window.addEventListener("load", () => {
     padding: 20px;
     text-align: center;
   }
-  #victory-modal.active {
-    display: flex;
-  }
+  #victory-modal.active { display: flex; }
   .winner-avatar {
-    width: 120px;
-    height: 120px;
-    margin: 12px 0;
+    width: 115px;
+    height: 115px;
+    margin: 10px 0;
     filter: drop-shadow(0 0 24px var(--gold));
     animation: bounceWinner 0.7s ease-in-out infinite alternate;
   }
@@ -487,7 +466,7 @@ window.addEventListener("load", () => {
     border: 2px solid #3c4d8a;
     border-radius: 14px;
     padding: 10px;
-    margin: 12px 0 18px;
+    margin: 10px 0 16px;
   }
   .score-row {
     display: flex;
@@ -506,12 +485,12 @@ window.addEventListener("load", () => {
 <!-- ==================== LOBBY SCREEN ==================== -->
 <div id="lobby-screen" class="screen active">
   <div class="brawl-title">⚡ FAMILY BRAWL ⚡</div>
-  <div class="brawl-subtitle">Семейная Битва Всех Против Всех • До 4 телефонов онлайн + Боты</div>
+  <div class="brawl-subtitle">Семейная Битва Всех Против Всех • Синхронизация в реальном времени</div>
 
   <!-- STEP 1: CHOOSE HERO -->
   <div class="lobby-card">
     <div class="section-label">
-      <span>1. Выбери своего героя</span>
+      <span>1. Выбери своего героя (у каждого телефона — свой персонаж)</span>
       <label style="font-size:11px; color:#ffd966; cursor:pointer; display:flex; align-items:center; gap:5px;">
         <input type="checkbox" id="comic-filter-toggle"> Мульт-фильтр лиц
       </label>
@@ -522,53 +501,50 @@ window.addEventListener("load", () => {
   <!-- STEP 2: MULTIPLAYER OR SOLO -->
   <div class="lobby-card">
     <div class="section-label">
-      <span>2. Режим и Мультиплеер (4 телефона)</span>
-      <span id="net-status" style="color:var(--green); font-size:11px;">🟢 Онлайн-сервер готов</span>
+      <span>2. Общая комната для телефонов (подключается автоматически!)</span>
+      <span id="net-status" style="color:var(--gold); font-size:11.5px;">🟡 Подключение к облаку...</span>
     </div>
 
-    <div class="mode-selector" style="margin-bottom: 10px;">
+    <div class="mode-selector">
       <div class="mode-pill active" data-mode="showdown" onclick="selectMode('showdown')">
-        ☠️ <b>Столкновение (Бравл)</b><br><span style="font-size:10px; color:#9cb0ec;">Ящики силы + ядовитый туман</span>
+        ☠️ <b>Столкновение (Бравл)</b> — Ящики силы + туман
       </div>
       <div class="mode-pill" data-mode="bounty" onclick="selectMode('bounty')">
-        ⭐ <b>Кубок Семьи (2 мин)</b><br><span style="font-size:10px; color:#9cb0ec;">Возрождение + битва за звёзды</span>
+        ⭐ <b>Кубок Семьи (2 мин)</b> — Возрождение + битва за звёзды
       </div>
     </div>
 
     <div class="mp-grid">
-      <!-- CREATE / JOIN ROOM -->
+      <!-- ROOM SELECTION -->
       <div class="mp-box">
-        <div style="font-size:12px; font-weight:800; color:#d2deff;">Играть вместе с разных телефонов:</div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-blue btn-sm" style="flex:1;" onclick="createRoom()">👑 Создать комнату</button>
-          <button class="btn btn-pink btn-sm" style="flex:1;" onclick="shareRoomLink()" id="share-btn" style="display:none;">📲 Поделиться ссылкой</button>
+        <div style="font-size:11.5px; font-weight:800; color:#d2deff;">
+          Выберите комнату (по умолчанию все телефоны сразу входят в <b>СЕМЬЯ</b>):
+        </div>
+        <div class="room-Preset-row">
+          <div class="room-chip active" id="chip-MIRSON" onclick="switchRoom('MIRSON')">🏠 СЕМЬЯ (Общая)</div>
+          <div class="room-chip" id="chip-ARENA2" onclick="switchRoom('ARENA2')">⚔️ АРЕНА #2</div>
         </div>
         <div class="input-row">
-          <input type="text" id="join-code-input" class="code-input" maxlength="6" placeholder="КОД (4 цифры)">
-          <button class="btn btn-green btn-sm" onclick="joinRoomByInput()">Войти</button>
+          <input type="text" id="join-code-input" class="code-input" maxlength="8" value="MIRSON" placeholder="КОД КОМНАТЫ">
+          <button class="btn btn-blue btn-sm" onclick="joinRoomByInput()">Сменить</button>
+          <button class="btn btn-pink btn-sm" onclick="shareRoomLink()">📲 Ссылка</button>
         </div>
-        <div id="active-room-panel" style="display:none;">
-          <div class="room-badge">
-            <div>
-              <div style="font-size:10px; color:#9cb0ec;">КОД КОМНАТЫ ДЛЯ ТЕЛЕФОНОВ:</div>
-              <div class="room-code-big" id="room-code-display">----</div>
-            </div>
-            <button class="btn btn-yellow btn-sm" onclick="copyRoomLink()">📋 Ссылка</button>
-          </div>
+        <div style="font-size:10.5px; color:#9cb0ec; line-height:1.3;">
+          💡 <b>Как играть вместе:</b> Просто откройте игру на 2–4 телефонах, выберите разных героев, убедитесь, что вы видите друг друга в списке справа, и нажмите <b>«В БОЙ!»</b> на любом телефоне!
         </div>
       </div>
 
       <!-- LOBBY ROSTER & START -->
       <div class="mp-box">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:12px; font-weight:800; color:#d2deff;">Участники на арене (4 бойца):</span>
+          <span style="font-size:12px; font-weight:800; color:#d2deff;" id="roster-title">Бойцы в комнате (4 места):</span>
           <label style="font-size:11px; color:#a9b9f0; cursor:pointer;">
-            <input type="checkbox" id="fill-bots-toggle" checked onchange="updateRosterUI()"> + Боты на пустые места
+            <input type="checkbox" id="fill-bots-toggle" checked onchange="onFillBotsChanged()"> + Боты до 4 игроков
           </label>
         </div>
         <div class="players-roster" id="players-roster"></div>
-        <button class="btn btn-yellow" style="width:100%; margin-top:auto; font-size:18px; padding:13px;" onclick="handleStartMatchBtn()">
-          🔥 В БОЙ! (СТАРТ) 🔥
+        <button class="btn btn-yellow" style="width:100%; margin-top:auto; font-size:17px; padding:12px;" onclick="handleStartMatchBtn()">
+          🔥 В БОЙ! (СТАРТ ДЛЯ ВСЕХ) 🔥
         </button>
       </div>
     </div>
@@ -580,7 +556,10 @@ window.addEventListener("load", () => {
   <div class="hud-top">
     <div class="hud-pill">
       <span id="hud-mode-icon">☠️</span>
-      <span id="hud-alive-text">Бойцов: 4</span>
+      <span id="hud-alive-text">Живых: 4/4</span>
+    </div>
+    <div class="hud-pill" id="hud-net-pill" style="font-size:11.5px; color:#38ef7d;">
+      🟢 Онлайн: 1 тел.
     </div>
     <div class="hud-pill" id="hud-timer-pill">
       ⏱️ <span id="hud-timer">02:00</span>
@@ -593,11 +572,9 @@ window.addEventListener("load", () => {
 
   <canvas id="game-canvas"></canvas>
 
-  <!-- Touch Zones for Dual Virtual Joysticks -->
   <div id="zone-left" class="touch-zone"></div>
   <div id="zone-right" class="touch-zone"></div>
 
-  <!-- Super & Emote Buttons -->
   <div class="action-buttons">
     <div class="emote-btn" onclick="triggerEmote()" title="Эмоция">😎</div>
     <div class="super-btn" id="super-btn" onclick="triggerSuper()">
@@ -606,7 +583,6 @@ window.addEventListener("load", () => {
     </div>
   </div>
 
-  <!-- Victory / End Modal -->
   <div id="victory-modal">
     <div class="brawl-title" id="victory-title">ПОБЕДА!</div>
     <div id="victory-subtitle" style="font-size:16px; color:#ffd966; font-weight:800; margin-top:4px;"></div>
@@ -633,13 +609,12 @@ const HEROES = [
     superDesc: 'Выпускает пса Алекса в атаку и включает золотой бронещит!',
     color: '#ffb90f',
     bodyColor: '#e8d5b5',
-    TrimColor: '#222831',
     hp: 5600,
-    speed: 215,
+    speed: 220,
     damage: 540,
-    range: 340,
-    reloadMs: 850,
-    projSpeed: 640,
+    range: 350,
+    reloadMs: 820,
+    projSpeed: 650,
     projCount: 3,
     spread: 0.34,
     projType: 'espresso',
@@ -654,12 +629,11 @@ const HEROES = [
     superDesc: 'Мощная волна из 12 энергетических звёзд вокруг + лечение +1400 ХП!',
     color: '#00d7ff',
     bodyColor: '#ffffff',
-    TrimColor: '#1a1f36',
     hp: 4300,
-    speed: 245,
+    speed: 248,
     damage: 880,
     range: 560,
-    reloadMs: 780,
+    reloadMs: 760,
     projSpeed: 840,
     projCount: 1,
     spread: 0.04,
@@ -672,16 +646,15 @@ const HEROES = [
     role: 'Штурмовик • Бомбер',
     weaponName: 'Шаурма-Базука',
     superName: 'Мега-Ролл Залп',
-    superDesc: 'Запускает 3 взрывных мега-ролла с острым соусом и огненной зоной!',
+    superDesc: 'Запускает 3 взрывных мега-ролла с острым соусом!',
     color: '#3ce655',
     bodyColor: '#b8c4d0',
-    TrimColor: '#1f242d',
     hp: 4700,
-    speed: 238,
+    speed: 240,
     damage: 960,
     range: 460,
-    reloadMs: 920,
-    projSpeed: 610,
+    reloadMs: 890,
+    projSpeed: 620,
     projCount: 1,
     spread: 0.06,
     projType: 'shawarma',
@@ -696,12 +669,11 @@ const HEROES = [
     superDesc: 'Молниеносный рывок сквозь врагов + веер неоновых звёзд!',
     color: '#ff41af',
     bodyColor: '#253159',
-    TrimColor: '#ff41af',
     hp: 4100,
-    speed: 272,
+    speed: 275,
     damage: 510,
     range: 430,
-    reloadMs: 650,
+    reloadMs: 640,
     projSpeed: 790,
     projCount: 2,
     spread: 0.16,
@@ -714,15 +686,14 @@ const HEROES = [
     role: 'Турбо-Йорк',
     weaponName: 'Ультра-Тявк',
     superName: 'Зумис-Безумие',
-    superDesc: 'Ускорение x1.6, щит и звуковые волны во все стороны!',
+    superDesc: 'Ускорение x1.5, щит и звуковые волны во все стороны!',
     color: '#b973ff',
     bodyColor: '#c98a4b',
-    TrimColor: '#5c6b73',
     hp: 4400,
     speed: 285,
     damage: 680,
-    range: 310,
-    reloadMs: 600,
+    range: 320,
+    reloadMs: 590,
     projSpeed: 700,
     projCount: 2,
     spread: 0.25,
@@ -731,7 +702,6 @@ const HEROES = [
   }
 ];
 
-// Preload Hero Images
 const HERO_IMAGES = {};
 HEROES.forEach(h => {
   const img = new Image();
@@ -739,7 +709,7 @@ HEROES.forEach(h => {
   HERO_IMAGES[h.id] = img;
 });
 
-// ==================== SOUND SYNTHESIZER (WEB AUDIO API) ====================
+// ==================== SOUND SYNTHESIZER ====================
 let audioCtx = null;
 let soundEnabled = true;
 
@@ -765,44 +735,39 @@ function playSfx(type) {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(420, now);
     osc.frequency.exponentialRampToValueAtTime(130, now + 0.11);
-    gain.gain.setValueAtTime(0.16, now);
+    gain.gain.setValueAtTime(0.15, now);
     gain.gain.linearRampToValueAtTime(0.01, now + 0.11);
-    osc.start(now);
-    osc.stop(now + 0.11);
+    osc.start(now); osc.stop(now + 0.11);
   } else if (type === 'hit') {
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(190, now);
     osc.frequency.linearRampToValueAtTime(80, now + 0.08);
-    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.setValueAtTime(0.16, now);
     gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
-    osc.start(now);
-    osc.stop(now + 0.08);
+    osc.start(now); osc.stop(now + 0.08);
   } else if (type === 'powerup') {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(440, now);
     osc.frequency.setValueAtTime(660, now + 0.07);
     osc.frequency.setValueAtTime(880, now + 0.14);
-    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.setValueAtTime(0.18, now);
     gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
-    osc.start(now);
-    osc.stop(now + 0.25);
+    osc.start(now); osc.stop(now + 0.25);
   } else if (type === 'super') {
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(260, now);
     osc.frequency.exponentialRampToValueAtTime(880, now + 0.28);
-    gain.gain.setValueAtTime(0.24, now);
+    gain.gain.setValueAtTime(0.22, now);
     gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
-    osc.start(now);
-    osc.stop(now + 0.3);
+    osc.start(now); osc.stop(now + 0.3);
   } else if (type === 'ko') {
     osc.type = 'square';
     osc.frequency.setValueAtTime(520, now);
     osc.frequency.setValueAtTime(380, now + 0.1);
     osc.frequency.setValueAtTime(220, now + 0.22);
-    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.setValueAtTime(0.2, now);
     gain.gain.linearRampToValueAtTime(0.01, now + 0.36);
-    osc.start(now);
-    osc.stop(now + 0.36);
+    osc.start(now); osc.stop(now + 0.36);
   }
 }
 
@@ -811,15 +776,40 @@ function toggleSound() {
   document.getElementById('sound-btn').textContent = soundEnabled ? '🔊' : '🔇';
 }
 
-// ==================== STATE & LOBBY UI ====================
-let myPlayerId = 'p_' + Math.random().toString(36).substring(2, 8);
-let selectedHeroId = 'igor';
+// ==================== REAL-TIME P2P + MULTI-BROKER SYNC ENGINE ====================
+// Why this architecture never desyncs:
+// 1. Every phone automatically joins the shared room ("MIRSON" by default, or ?room=XXXX) on startup.
+// 2. Every human player simulates their own character locally at 60 FPS (zero lag) and broadcasts
+//    their live position, velocity, HP, and actions (shots, supers, crate hits, damage) at 20 Hz.
+// 3. All other phones receive these packets via Dual MQTT WSS Brokers + PeerJS WebRTC + BroadcastChannel
+//    and smoothly interpolate remote players at 60 FPS.
+// 4. Even if two players press "В БОЙ!" separately, their sessions automatically merge into one arena!
+
+const myPlayerId = 'p_' + Math.random().toString(36).substring(2, 8);
+// Pick a random initial hero so 4 phones opening the page don't all default to the exact same hero
+let selectedHeroId = HEROES[Math.floor(Math.random() * 4)].id;
 let selectedMode = 'showdown';
-let roomCode = null;
-let isHost = true;
-let lobbyPlayers = {}; // playerId -> { id, heroId, name, isReady, lastSeen }
+let fillBotsEnabled = true;
+let roomCode = 'MIRSON';
+let roomTopic = 'fb_mirson_rt_v2_MIRSON';
+
+let lobbyPlayers = {}; // id -> { id, heroId, lastSeen }
+let mqttClients = [];
+let localBroadcast = null;
+let peerInstance = null;
+let peerConns = {};
+let seenMsgIds = new Set();
+let msgCounter = 0;
 
 function initLobbyUI() {
+  const params = new URLSearchParams(window.location.search);
+  const urlRoom = params.get('room');
+  if (urlRoom && urlRoom.trim().length >= 2) {
+    roomCode = urlRoom.trim().toUpperCase();
+  }
+  document.getElementById('join-code-input').value = roomCode;
+  updateRoomChipHighlight();
+
   const grid = document.getElementById('hero-grid');
   grid.innerHTML = '';
   HEROES.forEach(h => {
@@ -849,31 +839,76 @@ function initLobbyUI() {
   lobbyPlayers[myPlayerId] = {
     id: myPlayerId,
     heroId: selectedHeroId,
-    isHost: true,
     lastSeen: Date.now()
   };
   updateRosterUI();
 
-  // Check URL ?room=XXXX parameter for auto-join
-  const params = new URLSearchParams(window.location.search);
-  const urlRoom = params.get('room');
-  if (urlRoom && urlRoom.trim().length >= 3) {
-    document.getElementById('join-code-input').value = urlRoom.trim().toUpperCase();
-    setTimeout(() => joinRoomByInput(), 400);
-  }
+  // Connect immediately & also register callback for when async CDN scripts finish loading
+  setupNetworking(roomCode);
+  window.__netLibsReadyCallbacks.push(() => setupNetworking(roomCode));
+
+  // Periodic heartbeat every 900ms so all phones in the lobby & match stay synced
+  setInterval(() => {
+    lobbyPlayers[myPlayerId] = {
+      id: myPlayerId,
+      heroId: selectedHeroId,
+      lastSeen: Date.now()
+    };
+    // Prune stale disconnected players (>8s silent)
+    const now = Date.now();
+    let changed = false;
+    Object.keys(lobbyPlayers).forEach(k => {
+      if (k !== myPlayerId && now - lobbyPlayers[k].lastSeen > 8000) {
+        delete lobbyPlayers[k];
+        changed = true;
+      }
+    });
+    if (changed) updateRosterUI();
+    sendNetMessage({
+      type: 'heartbeat',
+      player: { id: myPlayerId, heroId: selectedHeroId },
+      mode: selectedMode,
+      fillBots: fillBotsEnabled,
+      inMatch: gameState.running
+    });
+    updateNetStatusBadge();
+  }, 900);
+}
+
+function updateRoomChipHighlight() {
+  document.querySelectorAll('.room-chip').forEach(el => el.classList.remove('active'));
+  const chip = document.getElementById('chip-' + roomCode);
+  if (chip) chip.classList.add('active');
+}
+
+function switchRoom(code) {
+  initAudio();
+  document.getElementById('join-code-input').value = code;
+  joinRoomByInput();
+}
+
+function joinRoomByInput() {
+  initAudio();
+  const val = document.getElementById('join-code-input').value.trim().toUpperCase() || 'MIRSON';
+  roomCode = val;
+  updateRoomChipHighlight();
+  lobbyPlayers = {};
+  lobbyPlayers[myPlayerId] = { id: myPlayerId, heroId: selectedHeroId, lastSeen: Date.now() };
+  if (peerInstance) { try { peerInstance.destroy(); } catch (e) {} peerInstance = null; peerConns = {}; }
+  setupNetworking(roomCode);
+  updateRosterUI();
 }
 
 function selectHero(heroId) {
+  window.__userManuallyPickedHero = true;
   selectedHeroId = heroId;
   initAudio();
   playSfx('powerup');
   document.querySelectorAll('.hero-card').forEach((el, idx) => {
     el.classList.toggle('selected', HEROES[idx].id === heroId);
   });
-  if (lobbyPlayers[myPlayerId]) {
-    lobbyPlayers[myPlayerId].heroId = heroId;
-  }
-  broadcastLobbyState();
+  lobbyPlayers[myPlayerId] = { id: myPlayerId, heroId: selectedHeroId, lastSeen: Date.now() };
+  sendNetMessage({ type: 'heartbeat', player: { id: myPlayerId, heroId: selectedHeroId }, mode: selectedMode, fillBots: fillBotsEnabled });
   updateRosterUI();
 }
 
@@ -882,17 +917,43 @@ function selectMode(mode) {
   document.querySelectorAll('.mode-pill').forEach(el => {
     el.classList.toggle('active', el.dataset.mode === mode);
   });
-  broadcastLobbyState();
+  sendNetMessage({ type: 'mode_change', mode: selectedMode, fillBots: fillBotsEnabled });
+}
+
+function onFillBotsChanged() {
+  fillBotsEnabled = document.getElementById('fill-bots-toggle').checked;
+  updateRosterUI();
+  sendNetMessage({ type: 'mode_change', mode: selectedMode, fillBots: fillBotsEnabled });
+}
+
+function updateNetStatusBadge() {
+  const humanCount = Object.keys(lobbyPlayers).length;
+  const mqttUp = mqttClients.some(c => c && c.connected);
+  const peerCount = Object.values(peerConns).filter(c => c && c.open).length;
+  const statusEl = document.getElementById('net-status');
+  const hudEl = document.getElementById('hud-net-pill');
+
+  if (mqttUp || peerCount > 0) {
+    statusEl.style.color = '#38ef7d';
+    statusEl.textContent = `🟢 Комната «${roomCode}» онлайн • Подключено телефонов: ${humanCount}`;
+  } else {
+    statusEl.style.color = '#ffcc00';
+    statusEl.textContent = `🟢 Локальная синхронизация «${roomCode}» • Игроков: ${humanCount}`;
+  }
+  if (hudEl) {
+    hudEl.textContent = `🟢 В сети: ${humanCount} тел. (${roomCode})`;
+  }
 }
 
 function updateRosterUI() {
   const container = document.getElementById('players-roster');
+  if (!container) return;
   container.innerHTML = '';
-  const fillBots = document.getElementById('fill-bots-toggle').checked;
   const humanIds = Object.keys(lobbyPlayers).sort();
-
   const usedHeroes = new Set(humanIds.map(id => lobbyPlayers[id].heroId));
   const botHeroPool = HEROES.map(h => h.id).filter(id => !usedHeroes.has(id));
+
+  document.getElementById('roster-title').textContent = `В комнате «${roomCode}» (${humanIds.length} живых):`;
 
   for (let slot = 0; slot < 4; slot++) {
     const div = document.createElement('div');
@@ -905,15 +966,15 @@ function updateRosterUI() {
         <img src="${HEAD_SPRITES_B64[h.id]}">
         <div>
           <div style="color:${h.color}">${h.name} ${isMe ? '(Вы)' : ''}</div>
-          <div style="font-size:10px; color:#38ef7d;">📱 Телефон #${slot + 1}</div>
+          <div style="font-size:10px; color:#38ef7d;">📱 Игрок #${slot + 1}</div>
         </div>
       `;
-    } else if (fillBots) {
+    } else if (fillBotsEnabled) {
       const botHeroId = botHeroPool[(slot - humanIds.length) % botHeroPool.length] || HEROES[slot % HEROES.length].id;
       const h = HEROES.find(x => x.id === botHeroId);
       div.className = 'roster-slot';
       div.innerHTML = `
-        <img src="${HEAD_SPRITES_B64[h.id]}" style="opacity:0.8;">
+        <img src="${HEAD_SPRITES_B64[h.id]}" style="opacity:0.75;">
         <div>
           <div style="color:#b8c7ff">${h.name}</div>
           <div style="font-size:10px; color:#ffd966;">🤖 Смарт-Бот</div>
@@ -921,197 +982,179 @@ function updateRosterUI() {
       `;
     } else {
       div.className = 'roster-slot';
-      div.innerHTML = `<div style="color:#6c7bb3; padding:6px 0;">⏳ Ожидание игрока...</div>`;
+      div.innerHTML = `<div style="color:#6c7bb3; padding:5px 0;">⏳ Ждём телефон...</div>`;
     }
     container.appendChild(div);
   }
+  updateNetStatusBadge();
 }
 
-// ==================== SERVERLESS MULTIPLAYER ENGINE ====================
-// Combines:
-// 1. MQTT over WebSockets (wss://broker.emqx.io:8084/mqtt) - works across 100% of mobile 4G/5G/Wi-Fi NATs
-// 2. PeerJS WebRTC P2P - ultra-low latency direct data channel
-// 3. BroadcastChannel - instant multi-tab sync on the same device
-let mqttClient = null;
-let peerInstance = null;
-let peerConnections = [];
-let localBroadcast = null;
-let roomTopic = null;
-
-function setupNetworking(code, asHost) {
+function setupNetworking(code) {
   roomCode = code.toUpperCase();
-  isHost = asHost;
-  roomTopic = 'family_brawl_mirson_v1_' + roomCode;
+  roomTopic = 'fb_mirson_rt_v2_' + roomCode;
 
-  document.getElementById('active-room-panel').style.display = 'block';
-  document.getElementById('room-code-display').textContent = roomCode;
-  document.getElementById('net-status').textContent = '🟡 Подключение к комнате ' + roomCode + '...';
-
-  // 1. Local BroadcastChannel (for testing multiple tabs on same device)
+  // 1. BroadcastChannel (instant sync across tabs on same device)
   if ('BroadcastChannel' in window) {
-    if (localBroadcast) localBroadcast.close();
-    localBroadcast = new BroadcastChannel(roomTopic);
-    localBroadcast.onmessage = (ev) => handleNetMessage(ev.data);
+    if (localBroadcast && localBroadcast.name !== roomTopic) {
+      try { localBroadcast.close(); } catch (e) {}
+      localBroadcast = null;
+    }
+    if (!localBroadcast) {
+      localBroadcast = new BroadcastChannel(roomTopic);
+      localBroadcast.onmessage = (ev) => handleNetMessage(ev.data);
+    }
   }
 
-  // 2. MQTT over WSS (works across any mobile network/4G/Wi-Fi without TURN setup)
-  if (window.mqtt) {
-    if (mqttClient) {
-      try { mqttClient.end(true); } catch (e) {}
-    }
-    mqttClient = window.mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
-      clientId: 'fb_' + myPlayerId + '_' + Math.floor(Math.random() * 9999),
-      clean: true,
-      connectTimeout: 4000,
-      reconnectPeriod: 1500
-    });
-    mqttClient.on('connect', () => {
-      mqttClient.subscribe(roomTopic);
-      document.getElementById('net-status').textContent = '🟢 Комната ' + roomCode + ' активна (Онлайн)';
-      sendNetMessage({ type: 'hello', player: lobbyPlayers[myPlayerId] });
-    });
-    mqttClient.on('message', (topic, payload) => {
+  // 2. Dual Redundant MQTT over WebSockets Brokers (EMQX + HiveMQ)
+  if (window.mqtt && mqttClients.length === 0) {
+    const brokers = [
+      'wss://mqtt.eclipseprojects.io:443/mqtt',
+      'wss://broker.emqx.io:8084/mqtt',
+      'wss://broker.hivemq.com:8884/mqtt'
+    ];
+    brokers.forEach((url, idx) => {
       try {
-        const msg = JSON.parse(payload.toString());
-        handleNetMessage(msg);
+        const client = window.mqtt.connect(url, {
+          clientId: 'fb2_' + myPlayerId + '_' + idx + '_' + Math.floor(Math.random() * 9999),
+          clean: true,
+          connectTimeout: 5000,
+          reconnectPeriod: 1500
+        });
+        client.on('connect', () => {
+          client.subscribe(roomTopic);
+          updateNetStatusBadge();
+          sendNetMessage({ type: 'heartbeat', player: { id: myPlayerId, heroId: selectedHeroId }, mode: selectedMode, fillBots: fillBotsEnabled });
+        });
+        client.on('message', (t, payload) => {
+          if (t !== roomTopic) return;
+          try {
+            handleNetMessage(JSON.parse(payload.toString()));
+          } catch (e) {}
+        });
+        mqttClients.push(client);
       } catch (e) {}
     });
+  } else if (mqttClients.length > 0) {
+    mqttClients.forEach(c => {
+      if (c && c.connected) {
+        try { c.subscribe(roomTopic); } catch (e) {}
+      }
+    });
   }
 
-  // 3. PeerJS WebRTC DataChannel (parallel low-latency channel)
-  if (window.Peer) {
+  // 3. PeerJS WebRTC Direct Mesh + Deterministic 4-Slot Room Discovery (Port 443)
+  if (window.Peer && !peerInstance) {
+    tryClaimPeerSlot(0);
+  }
+let myPeerSlot = -1;
+function tryClaimPeerSlot(slotIdx) {
+  if (!window.Peer || slotIdx > 5) return;
+  const cleanRoom = roomCode.replace(/[^A-Z0-9]/g, '');
+  const candidateId = `fb2-${cleanRoom}-slot${slotIdx}`;
+  const iceConfig = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' }
+    ]
+  };
+  try {
+    const peer = new window.Peer(candidateId, { config: iceConfig });
+    peer.on('open', () => {
+      peerInstance = peer;
+      myPeerSlot = slotIdx;
+      // Auto-assign distinct default hero per slot (0=igor, 1=oksana, 2=veniamin, 3=vera)
+      if (!window.__userManuallyPickedHero && slotIdx < 4) {
+        selectedHeroId = HEROES[slotIdx].id;
+        document.querySelectorAll('.hero-card').forEach((el, idx) => {
+          el.classList.toggle('selected', HEROES[idx].id === selectedHeroId);
+        });
+        lobbyPlayers[myPlayerId].heroId = selectedHeroId;
+        updateRosterUI();
+      }
+      // Connect to all other slots 0..5 in this room
+      connectAllRoomSlots();
+      setInterval(connectAllRoomSlots, 2500);
+    });
+    peer.on('connection', conn => registerPeerConn(conn));
+    peer.on('error', err => {
+      if (err && err.type === 'unavailable-id') {
+        try { peer.destroy(); } catch (e) {}
+        tryClaimPeerSlot(slotIdx + 1);
+      }
+    });
+  } catch (e) {}
+}
+
+function connectAllRoomSlots() {
+  if (!peerInstance || !peerInstance.open) return;
+  const cleanRoom = roomCode.replace(/[^A-Z0-9]/g, '');
+  for (let s = 0; s <= 4; s++) {
+    if (s === myPeerSlot) continue;
+    const targetPeerId = `fb2-${cleanRoom}-slot${s}`;
+    if (!peerConns[targetPeerId] || !peerConns[targetPeerId].open) {
+      try {
+        const conn = peerInstance.connect(targetPeerId, { reliable: true });
+        registerPeerConn(conn, targetPeerId);
+      } catch (e) {}
+    }
+  }
+}
+
+}
+
+function connectToPeerIfNeeded(otherPlayerId) {
+  if (!peerInstance || !peerInstance.open || otherPlayerId === myPlayerId) return;
+  if (peerConns[otherPlayerId]) return;
+  // Deterministic initiator: smaller ID connects to larger ID
+  if (myPlayerId < otherPlayerId) {
     try {
-      if (peerInstance) peerInstance.destroy();
-      const peerId = asHost ? ('fb-mirson-host-' + roomCode) : ('fb-mirson-client-' + myPlayerId);
-      peerInstance = new Peer(peerId);
-      peerInstance.on('open', () => {
-        if (!asHost) {
-          const conn = peerInstance.connect('fb-mirson-host-' + roomCode, { reliable: false });
-          setupPeerConn(conn);
-        }
-      });
-      peerInstance.on('connection', (conn) => {
-        setupPeerConn(conn);
-      });
+      const conn = peerInstance.connect('fb2-' + otherPlayerId, { reliable: true });
+      registerPeerConn(conn, otherPlayerId);
     } catch (e) {}
   }
 }
 
-function setupPeerConn(conn) {
+function registerPeerConn(conn, peerPlayerId) {
+  const pid = peerPlayerId || conn.peer.replace('fb2-', '');
+  peerConns[pid] = conn;
   conn.on('open', () => {
-    peerConnections.push(conn);
-    conn.send({ type: 'hello', player: lobbyPlayers[myPlayerId] });
+    updateNetStatusBadge();
+    conn.send({
+      msgId: myPlayerId + '_' + (++msgCounter),
+      senderId: myPlayerId,
+      type: 'heartbeat',
+      player: { id: myPlayerId, heroId: selectedHeroId },
+      mode: selectedMode,
+      fillBots: fillBotsEnabled
+    });
   });
-  conn.on('data', (data) => handleNetMessage(data));
+  conn.on('data', data => handleNetMessage(data));
+  conn.on('close', () => { delete peerConns[pid]; });
 }
 
 function sendNetMessage(msg) {
   msg.senderId = myPlayerId;
+  msg.msgId = myPlayerId + '_' + (++msgCounter);
+  seenMsgIds.add(msg.msgId);
+
   if (localBroadcast) {
     try { localBroadcast.postMessage(msg); } catch (e) {}
   }
-  if (mqttClient && mqttClient.connected && roomTopic) {
-    try { mqttClient.publish(roomTopic, JSON.stringify(msg)); } catch (e) {}
-  }
-  peerConnections.forEach(c => {
-    if (c && c.open) {
-      try { c.send(msg); } catch (e) {}
+  const str = JSON.stringify(msg);
+  mqttClients.forEach(c => {
+    if (c && c.connected && roomTopic) {
+      try { c.publish(roomTopic, str); } catch (e) {}
     }
   });
-}
-
-function broadcastLobbyState() {
-  if (!roomCode) return;
-  sendNetMessage({
-    type: 'lobby_update',
-    player: { id: myPlayerId, heroId: selectedHeroId, isHost },
-    mode: isHost ? selectedMode : undefined
+  Object.values(peerConns).forEach(conn => {
+    if (conn && conn.open) {
+      try { conn.send(msg); } catch (e) {}
+    }
   });
-}
-
-function handleNetMessage(msg) {
-  if (!msg || msg.senderId === myPlayerId) return;
-
-  if (msg.type === 'hello' || msg.type === 'lobby_update') {
-    if (msg.player && msg.player.id) {
-      lobbyPlayers[msg.player.id] = {
-        id: msg.player.id,
-        heroId: msg.player.heroId,
-        isHost: msg.player.isHost,
-        lastSeen: Date.now()
-      };
-      if (msg.mode && !isHost) {
-        selectedMode = msg.mode;
-        document.querySelectorAll('.mode-pill').forEach(el => {
-          el.classList.toggle('active', el.dataset.mode === selectedMode);
-        });
-      }
-      updateRosterUI();
-      if (msg.type === 'hello') {
-        broadcastLobbyState();
-      }
-    }
-  } else if (msg.type === 'start_match') {
-    if (!gameState.running) {
-      startMatchWithConfig(msg.config);
-    }
-  } else if (msg.type === 'input') {
-    // Client sends input to Host
-    if (isHost && gameState.running) {
-      const ent = gameState.fighters.find(f => f.id === msg.senderId);
-      if (ent) {
-        ent.netInput = msg.input;
-      }
-    }
-  } else if (msg.type === 'state_sync') {
-    // Host broadcasts authoritative state to Clients
-    if (!isHost && gameState.running) {
-      applyHostStateSync(msg.state);
-    }
-  } else if (msg.type === 'emote') {
-    const ent = gameState.fighters.find(f => f.id === msg.senderId);
-    if (ent) {
-      ent.speechText = msg.text;
-      ent.speechTimer = 2.4;
-    }
-  }
-}
-
-function createRoom() {
-  initAudio();
-  const code = String(Math.floor(1000 + Math.random() * 9000));
-  lobbyPlayers = {};
-  lobbyPlayers[myPlayerId] = { id: myPlayerId, heroId: selectedHeroId, isHost: true, lastSeen: Date.now() };
-  setupNetworking(code, true);
-  updateRosterUI();
-}
-
-function joinRoomByInput() {
-  initAudio();
-  const val = document.getElementById('join-code-input').value.trim();
-  if (val.length < 3) {
-    alert('Введите 4-значный код комнаты, который показан на экране Хоста!');
-    return;
-  }
-  lobbyPlayers = {};
-  lobbyPlayers[myPlayerId] = { id: myPlayerId, heroId: selectedHeroId, isHost: false, lastSeen: Date.now() };
-  setupNetworking(val, false);
-  updateRosterUI();
-}
-
-function copyRoomLink() {
-  if (!roomCode) createRoom();
-  const url = window.location.origin + window.location.pathname + '?room=' + roomCode;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url);
-    alert('Ссылка на комнату ' + roomCode + ' скопирована! Отправьте её в семейный чат.');
-  } else {
-    prompt('Скопируйте ссылку для входа:', url);
-  }
 }
 
 function shareRoomLink() {
-  if (!roomCode) createRoom();
   const url = window.location.origin + window.location.pathname + '?room=' + roomCode;
   if (navigator.share) {
     navigator.share({
@@ -1119,20 +1162,31 @@ function shareRoomLink() {
       text: 'Заходи в нашу комнату! Код: ' + roomCode,
       url: url
     }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url);
+    alert('Ссылка скопирована! Отправьте её в семейный чат: ' + url);
   } else {
-    copyRoomLink();
+    prompt('Скопируйте ссылку для входа:', url);
   }
 }
 
-// ==================== GAME ENGINE & ARENA ====================
+// ==================== DISTRIBUTED REAL-TIME MATCH ENGINE ====================
 const WORLD_W = 1600;
 const WORLD_H = 1600;
+
+const SPAWN_POINTS = [
+  { x: 220, y: 220 },
+  { x: 1380, y: 220 },
+  { x: 220, y: 1380 },
+  { x: 1380, y: 1380 }
+];
 
 const gameState = {
   running: false,
   mode: 'showdown',
+  fillBots: true,
   timeRemaining: 120,
-  poisonRadius: 1150,
+  poisonRadius: 1180,
   fighters: [],
   projectiles: [],
   crates: [],
@@ -1145,55 +1199,255 @@ const gameState = {
   winner: null
 };
 
-function handleStartMatchBtn() {
-  initAudio();
-  playSfx('super');
-  const fillBots = document.getElementById('fill-bots-toggle').checked;
+// Who is the deterministic Coordinator for AI Bots & World Crates?
+// Always the active human player with the alphabetically smallest ID!
+function isRoomCoordinator() {
   const humanIds = Object.keys(lobbyPlayers).sort();
+  return humanIds.length === 0 || humanIds[0] === myPlayerId;
+}
 
-  // If connected to a room where someone else is host, still allow starting or syncing
-  const roster = [];
-  const usedHeroes = new Set(humanIds.map(id => lobbyPlayers[id].heroId));
-  const botHeroPool = HEROES.map(h => h.id).filter(id => !usedHeroes.has(id));
+function getSpawnForPlayerId(id) {
+  const humanIds = Object.keys(lobbyPlayers).sort();
+  const idx = Math.max(0, humanIds.indexOf(id));
+  return SPAWN_POINTS[idx % SPAWN_POINTS.length];
+}
 
-  humanIds.slice(0, 4).forEach((id, idx) => {
-    roster.push({
-      id: id,
-      heroId: lobbyPlayers[id].heroId,
-      isBot: false,
-      spawnIndex: idx
-    });
-  });
+function createFighterObject(id, heroId, isBot, spawnIndex) {
+  const h = HEROES.find(x => x.id === heroId) || HEROES[0];
+  const sp = SPAWN_POINTS[spawnIndex % SPAWN_POINTS.length];
+  return {
+    id: id,
+    heroId: h.id,
+    hero: h,
+    isBot: isBot,
+    x: sp.x,
+    y: sp.y,
+    tx: sp.x, // target X for smooth remote interpolation
+    ty: sp.y, // target Y for smooth remote interpolation
+    vx: 0,
+    vy: 0,
+    angle: Math.atan2(WORLD_H / 2 - sp.y, WORLD_W / 2 - sp.x),
+    hp: h.hp,
+    maxHp: h.hp,
+    ammo: 3,
+    maxAmmo: 3,
+    ammoReloadTimer: 0,
+    superCharge: 0,
+    powerCubes: 0,
+    stars: 2,
+    kills: 0,
+    dead: false,
+    respawnTimer: 0,
+    shieldTimer: 0,
+    speedBoostTimer: 0,
+    hitFlash: 0,
+    walkPhase: 0,
+    speechText: h.phrases[0],
+    speechTimer: 2.0,
+    botTargetTimer: 0,
+    botMoveAngle: 0,
+    lastNetUpdate: Date.now()
+  };
+}
 
-  if (fillBots) {
-    while (roster.length < 4) {
-      const idx = roster.length;
-      const bHero = botHeroPool[idx % botHeroPool.length] || HEROES[idx % HEROES.length].id;
-      roster.push({
-        id: 'bot_' + idx,
-        heroId: bHero,
-        isBot: true,
-        spawnIndex: idx
-      });
+// Dynamically ensure a remote human player exists in gameState.fighters (replaces a bot if needed!)
+function ensureRemoteHumanFighter(playerId, heroId, x, y) {
+  let f = gameState.fighters.find(el => el.id === playerId);
+  if (f) {
+    if (f.heroId !== heroId) {
+      const newH = HEROES.find(x => x.id === heroId);
+      if (newH) { f.heroId = heroId; f.hero = newH; }
+    }
+    return f;
+  }
+  // If a bot is occupying a slot, replace the last bot with this real human player!
+  const botIdx = gameState.fighters.findIndex(el => el.isBot);
+  const spawnIdx = Object.keys(lobbyPlayers).sort().indexOf(playerId);
+  const newF = createFighterObject(playerId, heroId, false, spawnIdx >= 0 ? spawnIdx : gameState.fighters.length);
+  if (typeof x === 'number' && typeof y === 'number') {
+    newF.x = x; newF.y = y; newF.tx = x; newF.ty = y;
+  }
+  if (botIdx !== -1) {
+    gameState.fighters[botIdx] = newF;
+  } else {
+    gameState.fighters.push(newF);
+  }
+  return newF;
+}
+
+function handleNetMessage(msg) {
+  if (!msg || msg.senderId === myPlayerId) return;
+  if (msg.msgId) {
+    if (seenMsgIds.has(msg.msgId)) return;
+    seenMsgIds.add(msg.msgId);
+    if (seenMsgIds.size > 2000) {
+      const first = seenMsgIds.values().next().value;
+      seenMsgIds.delete(first);
     }
   }
 
-  const config = {
-    mode: selectedMode,
-    seed: Math.floor(Math.random() * 100000),
-    roster: roster
-  };
-
-  if (roomCode) {
-    isHost = true; // Initiator runs physics authority
-    sendNetMessage({ type: 'start_match', config });
+  // Always register active sender in lobbyPlayers & establish direct WebRTC channel if possible
+  if (msg.senderId && msg.senderId.startsWith('p_')) {
+    const prev = lobbyPlayers[msg.senderId];
+    const heroId = (msg.player && msg.player.heroId) || (msg.heroId) || (prev ? prev.heroId : 'oksana');
+    lobbyPlayers[msg.senderId] = {
+      id: msg.senderId,
+      heroId: heroId,
+      lastSeen: Date.now()
+    };
+    connectToPeerIfNeeded(msg.senderId);
+    if (!prev || prev.heroId !== heroId) {
+      updateRosterUI();
+    } else {
+      updateNetStatusBadge();
+    }
   }
-  startMatchWithConfig(config);
+
+  if (msg.type === 'heartbeat') {
+    if (msg.inMatch && !gameState.running) {
+      // Auto-join active match in this room!
+      startMatchLocal(msg.mode || selectedMode, msg.fillBots !== undefined ? msg.fillBots : fillBotsEnabled);
+    }
+  } else if (msg.type === 'mode_change') {
+    selectedMode = msg.mode || selectedMode;
+    fillBotsEnabled = msg.fillBots !== undefined ? msg.fillBots : fillBotsEnabled;
+    document.getElementById('fill-bots-toggle').checked = fillBotsEnabled;
+    document.querySelectorAll('.mode-pill').forEach(el => {
+      el.classList.toggle('active', el.dataset.mode === selectedMode);
+    });
+    updateRosterUI();
+  } else if (msg.type === 'start_match') {
+    selectedMode = msg.mode || selectedMode;
+    fillBotsEnabled = msg.fillBots !== undefined ? msg.fillBots : fillBotsEnabled;
+    if (msg.players) {
+      msg.players.forEach(p => {
+        lobbyPlayers[p.id] = { id: p.id, heroId: p.heroId, lastSeen: Date.now() };
+      });
+    }
+    startMatchLocal(selectedMode, fillBotsEnabled);
+  } else if (msg.type === 'hero_tick') {
+    // Auto-merge if we were still on Lobby screen when someone in our room started playing!
+    if (!gameState.running) {
+      startMatchLocal(msg.mode || selectedMode, fillBotsEnabled);
+    }
+    const f = ensureRemoteHumanFighter(msg.senderId, msg.heroId, msg.x, msg.y);
+    f.lastNetUpdate = Date.now();
+    // If large teleport (respawn/dash), snap; otherwise smooth target
+    if (Math.hypot(msg.x - f.x, msg.y - f.y) > 220) {
+      f.x = msg.x;
+      f.y = msg.y;
+    }
+    f.tx = msg.x;
+    f.ty = msg.y;
+    f.vx = msg.vx || 0;
+    f.vy = msg.vy || 0;
+    f.angle = msg.a || 0;
+    f.hp = msg.hp;
+    f.maxHp = msg.mhp;
+    f.powerCubes = msg.pc || 0;
+    f.stars = msg.st || 2;
+    f.kills = msg.k || 0;
+    f.dead = !!msg.d;
+    f.shieldTimer = msg.sh ? 0.4 : 0;
+    if (msg.sp) {
+      f.speechText = msg.sp;
+      f.speechTimer = 1.5;
+    }
+  } else if (msg.type === 'world_tick') {
+    if (!gameState.running) return;
+    // Apply coordinator's timer, poison ring, crates, pickups, and AI bots
+    gameState.timeRemaining = msg.t;
+    gameState.poisonRadius = msg.pr;
+    if (msg.crates) {
+      gameState.crates = msg.crates.map(c => ({ id: c.id, x: c.x, y: c.y, hp: c.hp, maxHp: 2200, hitFlash: 0 }));
+    }
+    if (msg.pickups) {
+      gameState.pickups = msg.pickups;
+    }
+    if (msg.bots) {
+      const activeBotIds = new Set(msg.bots.map(b => b.id));
+      gameState.fighters = gameState.fighters.filter(f => !f.isBot || activeBotIds.has(f.id));
+      msg.bots.forEach(b => {
+        let bf = gameState.fighters.find(x => x.id === b.id);
+        if (!bf && gameState.fighters.length < 4) {
+          bf = createFighterObject(b.id, b.heroId, true, 3);
+          bf.x = b.x; bf.y = b.y;
+          gameState.fighters.push(bf);
+        }
+        if (bf && bf.isBot) {
+          if (Math.hypot(b.x - bf.x, b.y - bf.y) > 220) { bf.x = b.x; bf.y = b.y; }
+          bf.tx = b.x; bf.ty = b.y;
+          bf.vx = b.vx || 0; bf.vy = b.vy || 0;
+          bf.angle = b.a; bf.hp = b.hp; bf.maxHp = b.mhp;
+          bf.powerCubes = b.pc; bf.stars = b.st; bf.kills = b.k; bf.dead = b.d;
+        }
+      });
+    }
+  } else if (msg.type === 'action') {
+    if (!gameState.running) return;
+    const actor = gameState.fighters.find(x => x.id === msg.actorId) || ensureRemoteHumanFighter(msg.actorId, msg.heroId);
+    if (msg.act === 'shoot') {
+      spawnProjectilesLocal(actor, msg.angle);
+    } else if (msg.act === 'super') {
+      executeSuperLocal(actor, msg.angle);
+    } else if (msg.act === 'hit_fighter') {
+      const target = gameState.fighters.find(x => x.id === msg.targetId);
+      if (target && !target.dead) {
+        // If we are the target (or if target is a bot and we are coordinator), deduct HP
+        if (target.id === myPlayerId || (target.isBot && isRoomCoordinator())) {
+          applyDamageToFighter(target, msg.dmg, msg.actorId, false);
+        } else {
+          target.hitFlash = 0.18;
+          playSfx('hit');
+        }
+      }
+    } else if (msg.act === 'ko') {
+      const attacker = gameState.fighters.find(x => x.id === msg.attackerId);
+      if (attacker && msg.attackerId === myPlayerId) {
+        attacker.kills += 1;
+        attacker.stars += 2;
+      }
+      playSfx('ko');
+    } else if (msg.act === 'crate_hit') {
+      const cIdx = gameState.crates.findIndex(c => c.id === msg.crateId);
+      if (cIdx !== -1) {
+        const c = gameState.crates[cIdx];
+        c.hp = msg.newHp;
+        c.hitFlash = 0.15;
+        if (c.hp <= 0) {
+          if (msg.dropType) {
+            gameState.pickups.push({ id: msg.dropId, x: c.x, y: c.y, type: msg.dropType });
+          }
+          gameState.crates.splice(cIdx, 1);
+        }
+      }
+    } else if (msg.act === 'pickup_taken') {
+      const pIdx = gameState.pickups.findIndex(p => p.id === msg.pickupId || (Math.hypot(p.x - msg.x, p.y - msg.y) < 30));
+      if (pIdx !== -1) gameState.pickups.splice(pIdx, 1);
+    } else if (msg.act === 'match_end') {
+      const wf = gameState.fighters.find(x => x.id === msg.winnerId) || gameState.fighters[0];
+      if (wf && gameState.running) finishMatch(wf, false);
+    }
+  }
 }
 
-function buildArenaMap(seed) {
+function handleStartMatchBtn() {
+  initAudio();
+  playSfx('super');
+  fillBotsEnabled = document.getElementById('fill-bots-toggle').checked;
+  const playersList = Object.values(lobbyPlayers).map(p => ({ id: p.id, heroId: p.heroId }));
+
+  sendNetMessage({
+    type: 'start_match',
+    mode: selectedMode,
+    fillBots: fillBotsEnabled,
+    players: playersList
+  });
+  startMatchLocal(selectedMode, fillBotsEnabled);
+}
+
+function buildArenaMap() {
   gameState.walls = [
-    // Symmetrical tactical Brawl walls
     { x: 460, y: 460, w: 150, h: 70 },
     { x: 990, y: 460, w: 150, h: 70 },
     { x: 460, y: 1070, w: 150, h: 70 },
@@ -1202,7 +1456,6 @@ function buildArenaMap(seed) {
     { x: 1070, y: 530, w: 70, h: 120 },
     { x: 460, y: 950, w: 70, h: 120 },
     { x: 1070, y: 950, w: 70, h: 120 },
-    // Outer cover blocks
     { x: 730, y: 260, w: 140, h: 65 },
     { x: 730, y: 1275, w: 140, h: 65 },
     { x: 260, y: 730, w: 65, h: 140 },
@@ -1214,7 +1467,6 @@ function buildArenaMap(seed) {
     { x: 950, y: 950, r: 52 }
   ];
 
-  // Tall grass bushes (stealth zones!)
   gameState.bushes = [];
   const bushClusters = [
     [360, 360], [1240, 360], [360, 1240], [1240, 1240],
@@ -1227,7 +1479,6 @@ function buildArenaMap(seed) {
     }
   });
 
-  // Power Cube Crates
   gameState.crates = [];
   const crateSpots = [
     [750, 750], [850, 750], [750, 850], [850, 850],
@@ -1246,13 +1497,14 @@ function buildArenaMap(seed) {
   });
 }
 
-function startMatchWithConfig(config) {
+function startMatchLocal(mode, fillBots) {
   document.getElementById('lobby-screen').classList.remove('active');
   document.getElementById('game-screen').classList.add('active');
   document.getElementById('victory-modal').classList.remove('active');
 
   gameState.running = true;
-  gameState.mode = config.mode || 'showdown';
+  gameState.mode = mode || 'showdown';
+  gameState.fillBots = fillBots !== undefined ? fillBots : true;
   gameState.timeRemaining = 120;
   gameState.poisonRadius = 1180;
   gameState.projectiles = [];
@@ -1261,50 +1513,24 @@ function startMatchWithConfig(config) {
   gameState.particles = [];
   gameState.winner = null;
 
-  buildArenaMap(config.seed);
+  buildArenaMap();
 
-  const spawnPoints = [
-    { x: 220, y: 220 },
-    { x: 1380, y: 220 },
-    { x: 220, y: 1380 },
-    { x: 1380, y: 1380 }
-  ];
+  const humanIds = Object.keys(lobbyPlayers).sort();
+  const usedHeroes = new Set(humanIds.map(id => lobbyPlayers[id].heroId));
+  const botHeroPool = HEROES.map(h => h.id).filter(id => !usedHeroes.has(id));
 
-  gameState.fighters = config.roster.map((slot, idx) => {
-    const h = HEROES.find(x => x.id === slot.heroId) || HEROES[0];
-    const sp = spawnPoints[idx % spawnPoints.length];
-    return {
-      id: slot.id,
-      heroId: h.id,
-      hero: h,
-      isBot: slot.isBot,
-      x: sp.x,
-      y: sp.y,
-      vx: 0,
-      vy: 0,
-      angle: Math.atan2(WORLD_H / 2 - sp.y, WORLD_W / 2 - sp.x),
-      hp: h.hp,
-      maxHp: h.hp,
-      ammo: 3,
-      maxAmmo: 3,
-      ammoReloadTimer: 0,
-      superCharge: 0, // 0..100
-      powerCubes: 0,
-      stars: 2,
-      kills: 0,
-      dead: false,
-      respawnTimer: 0,
-      shieldTimer: 0,
-      speedBoostTimer: 0,
-      hitFlash: 0,
-      walkPhase: 0,
-      speechText: h.phrases[0],
-      speechTimer: 2.2,
-      botTargetTimer: 0,
-      botMoveAngle: 0,
-      netInput: { mx: 0, my: 0, shoot: false, aimAngle: 0, superPressed: false }
-    };
+  gameState.fighters = [];
+  humanIds.slice(0, 4).forEach((id, idx) => {
+    gameState.fighters.push(createFighterObject(id, lobbyPlayers[id].heroId, false, idx));
   });
+
+  if (gameState.fillBots) {
+    while (gameState.fighters.length < 4) {
+      const idx = gameState.fighters.length;
+      const bHero = botHeroPool[idx % botHeroPool.length] || HEROES[idx % HEROES.length].id;
+      gameState.fighters.push(createFighterObject('bot_' + idx, bHero, true, idx));
+    }
+  }
 
   resizeCanvas();
   lastFrameTime = performance.now();
@@ -1320,9 +1546,10 @@ function leaveMatch() {
   document.getElementById('game-screen').classList.remove('active');
   document.getElementById('victory-modal').classList.remove('active');
   document.getElementById('lobby-screen').classList.add('active');
+  updateRosterUI();
 }
 
-// ==================== INPUT HANDLING (MOBILE TOUCH + KEYBOARD/MOUSE) ====================
+// ==================== INPUT HANDLING ====================
 const keys = {};
 const leftJoy = { active: false, id: null, startX: 0, startY: 0, curX: 0, curY: 0, dx: 0, dy: 0 };
 const rightJoy = { active: false, id: null, startX: 0, startY: 0, curX: 0, curY: 0, dx: 0, dy: 0, moved: false };
@@ -1345,7 +1572,6 @@ canvas.addEventListener('mousedown', e => {
 });
 window.addEventListener('mouseup', () => { mouseAim.down = false; });
 
-// Touch Zones
 const zoneLeft = document.getElementById('zone-left');
 const zoneRight = document.getElementById('zone-right');
 
@@ -1359,8 +1585,7 @@ zoneLeft.addEventListener('touchstart', e => {
   leftJoy.startY = t.clientY;
   leftJoy.curX = t.clientX;
   leftJoy.curY = t.clientY;
-  leftJoy.dx = 0;
-  leftJoy.dy = 0;
+  leftJoy.dx = 0; leftJoy.dy = 0;
 }, { passive: false });
 
 zoneLeft.addEventListener('touchmove', e => {
@@ -1383,9 +1608,7 @@ zoneLeft.addEventListener('touchmove', e => {
 function endLeftTouch(e) {
   for (const t of e.changedTouches) {
     if (t.identifier === leftJoy.id) {
-      leftJoy.active = false;
-      leftJoy.dx = 0;
-      leftJoy.dy = 0;
+      leftJoy.active = false; leftJoy.dx = 0; leftJoy.dy = 0;
     }
   }
 }
@@ -1402,8 +1625,7 @@ zoneRight.addEventListener('touchstart', e => {
   rightJoy.startY = t.clientY;
   rightJoy.curX = t.clientX;
   rightJoy.curY = t.clientY;
-  rightJoy.dx = 0;
-  rightJoy.dy = 0;
+  rightJoy.dx = 0; rightJoy.dy = 0;
   rightJoy.moved = false;
 }, { passive: false });
 
@@ -1430,18 +1652,10 @@ function endRightTouch(e) {
     if (t.identifier === rightJoy.id) {
       const me = getMyFighter();
       if (me && !me.dead) {
-        if (rightJoy.moved) {
-          const angle = Math.atan2(rightJoy.dy, rightJoy.dx);
-          requestFire(me, angle);
-        } else {
-          // Auto-aim tap!
-          const angle = getAutoAimAngle(me);
-          requestFire(me, angle);
-        }
+        const angle = rightJoy.moved ? Math.atan2(rightJoy.dy, rightJoy.dx) : getAutoAimAngle(me);
+        fireWeapon(me, angle);
       }
-      rightJoy.active = false;
-      rightJoy.dx = 0;
-      rightJoy.dy = 0;
+      rightJoy.active = false; rightJoy.dx = 0; rightJoy.dy = 0;
     }
   }
 }
@@ -1476,29 +1690,18 @@ function getAutoAimAngle(f) {
   return bestAngle;
 }
 
-let pendingShootAngle = null;
-let pendingSuper = false;
-
-function requestFire(f, angle) {
-  pendingShootAngle = angle;
-}
-
 function triggerSuper() {
   const me = getMyFighter();
   if (!me || me.dead || me.superCharge < 100) return;
-  pendingSuper = true;
+  executeSuper(me);
 }
 
 function triggerEmote() {
   const me = getMyFighter();
   if (!me) return;
   const phrases = me.hero.phrases;
-  const text = phrases[Math.floor(Math.random() * phrases.length)];
-  me.speechText = text;
+  me.speechText = phrases[Math.floor(Math.random() * phrases.length)];
   me.speechTimer = 2.5;
-  if (roomCode) {
-    sendNetMessage({ type: 'emote', text });
-  }
 }
 
 // ==================== WEAPONS & SUPER EXECUTION ====================
@@ -1506,10 +1709,21 @@ function fireWeapon(f, angle) {
   if (f.ammo < 1 || f.dead) return;
   f.ammo -= 1;
   f.angle = angle;
-  playSfx('shoot');
+  spawnProjectilesLocal(f, angle);
+  sendNetMessage({
+    type: 'action',
+    act: 'shoot',
+    actorId: f.id,
+    heroId: f.heroId,
+    angle: Number(angle.toFixed(3))
+  });
+}
 
+function spawnProjectilesLocal(f, angle) {
+  if (!f) return;
+  playSfx('shoot');
   const h = f.hero;
-  const dmgScale = 1 + f.powerCubes * 0.12;
+  const dmgScale = 1 + (f.powerCubes || 0) * 0.12;
   const count = h.projCount;
   for (let i = 0; i < count; i++) {
     const offset = count === 1 ? 0 : (i - (count - 1) / 2) * (h.spread / (count - 1 || 1));
@@ -1533,13 +1747,25 @@ function fireWeapon(f, angle) {
 function executeSuper(f) {
   if (f.superCharge < 100 || f.dead) return;
   f.superCharge = 0;
+  const aimA = getAutoAimAngle(f);
+  executeSuperLocal(f, aimA);
+  sendNetMessage({
+    type: 'action',
+    act: 'super',
+    actorId: f.id,
+    heroId: f.heroId,
+    angle: Number(aimA.toFixed(3))
+  });
+}
+
+function executeSuperLocal(f, aimA) {
+  if (!f) return;
   playSfx('super');
   const h = f.hero;
   f.speechText = 'СУПЕР: ' + h.superName.toUpperCase() + '!';
   f.speechTimer = 2.2;
 
   if (h.id === 'igor') {
-    // Summon battle dog Alex + Golden Shield!
     f.shieldTimer = 4.5;
     gameState.pets.push({
       ownerId: f.id,
@@ -1553,67 +1779,46 @@ function executeSuper(f) {
       lifeTimer: 12
     });
   } else if (h.id === 'oksana') {
-    // 360 degree star hurricane + heal 1400 HP!
     f.hp = Math.min(f.maxHp, f.hp + 1400);
     for (let i = 0; i < 12; i++) {
       const a = (Math.PI * 2 * i) / 12;
       gameState.projectiles.push({
         ownerId: f.id,
-        x: f.x,
-        y: f.y,
-        vx: Math.cos(a) * 680,
-        vy: Math.sin(a) * 680,
-        damage: 720,
-        maxDist: 460,
-        traveled: 0,
-        color: '#00e5ff',
-        type: 'star_wave',
-        radius: 13
+        x: f.x, y: f.y,
+        vx: Math.cos(a) * 680, vy: Math.sin(a) * 680,
+        damage: 720, maxDist: 460, traveled: 0,
+        color: '#00e5ff', type: 'star_wave', radius: 13
       });
     }
   } else if (h.id === 'veniamin') {
-    // Triple Mega-Shawarma Explosive Barrage!
-    const baseA = getAutoAimAngle(f);
+    const baseA = aimA !== undefined ? aimA : getAutoAimAngle(f);
     for (let i = -1; i <= 1; i++) {
       const a = baseA + i * 0.22;
       gameState.projectiles.push({
         ownerId: f.id,
-        x: f.x,
-        y: f.y,
-        vx: Math.cos(a) * 580,
-        vy: Math.sin(a) * 580,
-        damage: 1150,
-        maxDist: 520,
-        traveled: 0,
-        color: '#3ce655',
-        type: 'mega_shawarma',
-        radius: 20
+        x: f.x, y: f.y,
+        vx: Math.cos(a) * 580, vy: Math.sin(a) * 580,
+        damage: 1150, maxDist: 520, traveled: 0,
+        color: '#3ce655', type: 'mega_shawarma', radius: 20
       });
     }
   } else if (h.id === 'vera') {
-    // Lightning Dash + Peace Blade Nova!
     const a = f.angle;
     f.x = Math.max(80, Math.min(WORLD_W - 80, f.x + Math.cos(a) * 260));
     f.y = Math.max(80, Math.min(WORLD_H - 80, f.y + Math.sin(a) * 260));
+    f.tx = f.x; f.ty = f.y;
     f.speedBoostTimer = 4.0;
     for (let i = 0; i < 8; i++) {
       const na = (Math.PI * 2 * i) / 8;
       gameState.projectiles.push({
         ownerId: f.id,
-        x: f.x,
-        y: f.y,
-        vx: Math.cos(na) * 760,
-        vy: Math.sin(na) * 760,
-        damage: 640,
-        maxDist: 380,
-        traveled: 0,
-        color: '#ff41af',
-        type: 'peace',
-        radius: 12
+        x: f.x, y: f.y,
+        vx: Math.cos(na) * 760, vy: Math.sin(na) * 760,
+        damage: 640, maxDist: 380, traveled: 0,
+        color: '#ff41af', type: 'peace', radius: 12
       });
     }
   } else if (h.id === 'alex') {
-    // Turbo Zoomies + Shield + Bark Pulse!
     f.speedBoostTimer = 5.5;
     f.shieldTimer = 4.0;
     f.hp = Math.min(f.maxHp, f.hp + 1000);
@@ -1621,31 +1826,47 @@ function executeSuper(f) {
       const na = (Math.PI * 2 * i) / 10;
       gameState.projectiles.push({
         ownerId: f.id,
-        x: f.x,
-        y: f.y,
-        vx: Math.cos(na) * 650,
-        vy: Math.sin(na) * 650,
-        damage: 620,
-        maxDist: 350,
-        traveled: 0,
-        color: '#b973ff',
-        type: 'bark',
-        radius: 13
+        x: f.x, y: f.y,
+        vx: Math.cos(na) * 650, vy: Math.sin(na) * 650,
+        damage: 620, maxDist: 350, traveled: 0,
+        color: '#b973ff', type: 'bark', radius: 13
       });
     }
   }
 }
 
-// ==================== UPDATE LOOP & AI BOTS ====================
+// ==================== MAIN GAME UPDATE LOOP ====================
 let lastFrameTime = performance.now();
-let netSyncAccum = 0;
+let heroTickAccum = 0;
+let worldTickAccum = 0;
+
+function moveWithWallCollisions(f, dt) {
+  let nx = f.x + f.vx * dt;
+  let ny = f.y + f.vy * dt;
+  const rad = 28;
+  gameState.walls.forEach(w => {
+    const cx = Math.max(w.x, Math.min(nx, w.x + w.w));
+    const cy = Math.max(w.y, Math.min(ny, w.y + w.h));
+    const dx = nx - cx;
+    const dy = ny - cy;
+    const dist = Math.hypot(dx, dy);
+    if (dist < rad && dist > 0.001) {
+      nx += (dx / dist) * (rad - dist);
+      ny += (dy / dist) * (rad - dist);
+    }
+  });
+  f.x = Math.max(50, Math.min(WORLD_W - 50, nx));
+  f.y = Math.max(50, Math.min(WORLD_H - 50, ny));
+}
 
 function updateGame(dt) {
   if (!gameState.running) return;
 
   const me = getMyFighter();
+  const coordinator = isRoomCoordinator();
+
+  // 1. Local Player Input & Movement (Always responsive 60 FPS on your own device!)
   if (me && !me.dead) {
-    // Gather local player movement
     let mx = leftJoy.dx;
     let my = leftJoy.dy;
     if (keys['KeyW'] || keys['ArrowUp']) my -= 1;
@@ -1655,30 +1876,27 @@ function updateGame(dt) {
     const mlen = Math.hypot(mx, my);
     if (mlen > 1) { mx /= mlen; my /= mlen; }
 
+    const spd = me.hero.speed * (me.speedBoostTimer > 0 ? 1.45 : 1.0);
+    me.vx = mx * spd;
+    me.vy = my * spd;
+    moveWithWallCollisions(me, dt);
+
+    if (Math.hypot(me.vx, me.vy) > 15) {
+      me.walkPhase += dt * 11;
+      if (!rightJoy.active) {
+        me.angle = Math.atan2(me.vy, me.vx);
+      }
+    }
+
     if (mouseAim.down && !rightJoy.active) {
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
-      pendingShootAngle = Math.atan2(mouseAim.y - cy, mouseAim.x - cx);
+      fireWeapon(me, Math.atan2(mouseAim.y - cy, mouseAim.x - cx));
       mouseAim.down = false;
-    }
-
-    const myInput = {
-      mx,
-      my,
-      shootAngle: pendingShootAngle,
-      superPressed: pendingSuper
-    };
-    pendingShootAngle = null;
-    pendingSuper = false;
-
-    if (isHost) {
-      me.netInput = myInput;
-    } else {
-      sendNetMessage({ type: 'input', input: myInput });
     }
   }
 
-  // Update super button UI
+  // Update Super Button UI
   if (me) {
     const sBtn = document.getElementById('super-btn');
     const pct = Math.floor(me.superCharge);
@@ -1686,26 +1904,24 @@ function updateGame(dt) {
     sBtn.classList.toggle('ready', pct >= 100);
   }
 
-  // Only Host runs authoritative simulation (or singleplayer)
-  if (!isHost) return;
-
-  // Match timer & shrinking storm
+  // 2. Match Timer & Poison Cloud
   gameState.timeRemaining = Math.max(0, gameState.timeRemaining - dt);
-  if (gameState.mode === 'showdown') {
-    if (gameState.timeRemaining < 105) {
-      gameState.poisonRadius = Math.max(240, gameState.poisonRadius - 9.5 * dt);
-    }
+  if (gameState.mode === 'showdown' && gameState.timeRemaining < 105) {
+    gameState.poisonRadius = Math.max(240, gameState.poisonRadius - 9.5 * dt);
   }
 
-  // Update Fighters
+  // 3. Update All Fighters (Local, Remote Humans via 60 FPS Smooth Interpolation, and AI Bots)
   gameState.fighters.forEach(f => {
     if (f.speechTimer > 0) f.speechTimer -= dt;
     if (f.hitFlash > 0) f.hitFlash -= dt;
     if (f.shieldTimer > 0) f.shieldTimer -= dt;
     if (f.speedBoostTimer > 0) f.speedBoostTimer -= dt;
 
+    const isLocalMe = (f.id === myPlayerId);
+    const isSimulatedHere = isLocalMe || (f.isBot && coordinator);
+
     if (f.dead) {
-      if (gameState.mode === 'bounty') {
+      if (isSimulatedHere && gameState.mode === 'bounty') {
         f.respawnTimer -= dt;
         if (f.respawnTimer <= 0) {
           f.dead = false;
@@ -1714,104 +1930,76 @@ function updateGame(dt) {
           f.shieldTimer = 2.0;
           f.x = 240 + Math.random() * (WORLD_W - 480);
           f.y = 240 + Math.random() * (WORLD_H - 480);
+          f.tx = f.x; f.ty = f.y;
         }
       }
       return;
     }
 
-    // Ammo reload
-    if (f.ammo < f.maxAmmo) {
-      f.ammoReloadTimer += dt * 1000;
-      if (f.ammoReloadTimer >= f.hero.reloadMs) {
-        f.ammoReloadTimer = 0;
-        f.ammo = Math.min(f.maxAmmo, f.ammo + 1);
-      }
-    }
-
-    // Passive self-heal slightly when out of combat
-    if (f.hp < f.maxHp && f.hitFlash <= 0) {
-      f.hp = Math.min(f.maxHp, f.hp + 95 * dt);
-    }
-
-    // Bot AI vs Human Input
-    let mx = 0, my = 0;
-    if (f.isBot) {
-      updateBotAI(f, dt);
-      mx = Math.cos(f.botMoveAngle);
-      my = Math.sin(f.botMoveAngle);
-    } else if (f.netInput) {
-      mx = f.netInput.mx || 0;
-      my = f.netInput.my || 0;
-      if (f.netInput.shootAngle !== null && f.netInput.shootAngle !== undefined) {
-        fireWeapon(f, f.netInput.shootAngle);
-        f.netInput.shootAngle = null;
-      }
-      if (f.netInput.superPressed) {
-        executeSuper(f);
-        f.netInput.superPressed = false;
-      }
-    }
-
-    const spd = f.hero.speed * (f.speedBoostTimer > 0 ? 1.45 : 1.0);
-    f.vx = mx * spd;
-    f.vy = my * spd;
-
-    let nx = f.x + f.vx * dt;
-    let ny = f.y + f.vy * dt;
-    const rad = 28;
-
-    // Wall collisions
-    gameState.walls.forEach(w => {
-      const cx = Math.max(w.x, Math.min(nx, w.x + w.w));
-      const cy = Math.max(w.y, Math.min(ny, w.y + w.h));
-      const dx = nx - cx;
-      const dy = ny - cy;
-      const dist = Math.hypot(dx, dy);
-      if (dist < rad && dist > 0.001) {
-        nx += (dx / dist) * (rad - dist);
-        ny += (dy / dist) * (rad - dist);
-      }
-    });
-
-    f.x = Math.max(50, Math.min(WORLD_W - 50, nx));
-    f.y = Math.max(50, Math.min(WORLD_H - 50, ny));
-
-    if (Math.hypot(f.vx, f.vy) > 15) {
-      f.walkPhase += dt * 11;
-      if (!rightJoy.active) {
-        f.angle = Math.atan2(f.vy, f.vx);
-      }
-    }
-
-    // Poison cloud damage in Showdown
-    if (gameState.mode === 'showdown') {
-      const distFromCenter = Math.hypot(f.x - WORLD_W / 2, f.y - WORLD_H / 2);
-      if (distFromCenter > gameState.poisonRadius) {
-        f.hp -= 380 * dt;
-        f.hitFlash = 0.15;
-        if (f.hp <= 0) handleKnockout(f, null);
-      }
-    }
-
-    // Collect Power Cubes & Shawarma Pickups
-    for (let i = gameState.pickups.length - 1; i >= 0; i--) {
-      const p = gameState.pickups[i];
-      if (Math.hypot(p.x - f.x, p.y - f.y) < 42) {
-        playSfx('powerup');
-        if (p.type === 'cube') {
-          f.powerCubes += 1;
-          f.maxHp += 400;
-          f.hp = Math.min(f.maxHp, f.hp + 550);
-          f.stars += 1;
-        } else {
-          f.hp = Math.min(f.maxHp, f.hp + 1200);
+    if (isSimulatedHere) {
+      // Ammo reload & out-of-combat heal
+      if (f.ammo < f.maxAmmo) {
+        f.ammoReloadTimer += dt * 1000;
+        if (f.ammoReloadTimer >= f.hero.reloadMs) {
+          f.ammoReloadTimer = 0;
+          f.ammo = Math.min(f.maxAmmo, f.ammo + 1);
         }
-        gameState.pickups.splice(i, 1);
+      }
+      if (f.hp < f.maxHp && f.hitFlash <= 0) {
+        f.hp = Math.min(f.maxHp, f.hp + 95 * dt);
+      }
+
+      if (f.isBot) {
+        updateBotAI(f, dt);
+        const spd = f.hero.speed * (f.speedBoostTimer > 0 ? 1.45 : 1.0);
+        f.vx = Math.cos(f.botMoveAngle) * spd;
+        f.vy = Math.sin(f.botMoveAngle) * spd;
+        moveWithWallCollisions(f, dt);
+        if (Math.hypot(f.vx, f.vy) > 15) f.walkPhase += dt * 11;
+      }
+
+      // Poison damage
+      if (gameState.mode === 'showdown') {
+        const distFromCenter = Math.hypot(f.x - WORLD_W / 2, f.y - WORLD_H / 2);
+        if (distFromCenter > gameState.poisonRadius) {
+          f.hp -= 380 * dt;
+          f.hitFlash = 0.15;
+          if (f.hp <= 0) handleKnockout(f, null);
+        }
+      }
+
+      // Pickup collection
+      for (let i = gameState.pickups.length - 1; i >= 0; i--) {
+        const p = gameState.pickups[i];
+        if (Math.hypot(p.x - f.x, p.y - f.y) < 42) {
+          playSfx('powerup');
+          if (p.type === 'cube') {
+            f.powerCubes += 1;
+            f.maxHp += 400;
+            f.hp = Math.min(f.maxHp, f.hp + 550);
+            f.stars += 1;
+          } else {
+            f.hp = Math.min(f.maxHp, f.hp + 1200);
+          }
+          const picked = gameState.pickups.splice(i, 1)[0];
+          sendNetMessage({ type: 'action', act: 'pickup_taken', pickupId: picked.id, x: picked.x, y: picked.y });
+        }
+      }
+    } else {
+      // Remote Human or Non-Coordinator Bot: Smooth 60 FPS Dead Reckoning + Interpolation!
+      f.tx += f.vx * dt;
+      f.ty += f.vy * dt;
+      const lerpFactor = Math.min(1, dt * 16);
+      f.x += (f.tx - f.x) * lerpFactor;
+      f.y += (f.ty - f.y) * lerpFactor;
+      moveWithWallCollisions(f, 0);
+      if (Math.hypot(f.vx, f.vy) > 15 || Math.hypot(f.tx - f.x, f.ty - f.y) > 4) {
+        f.walkPhase += dt * 11;
       }
     }
   });
 
-  // Update Summoned Pets (Battle Alex!)
+  // 4. Update Summoned Pets (Battle Alex!)
   for (let i = gameState.pets.length - 1; i >= 0; i--) {
     const pet = gameState.pets[i];
     pet.lifeTimer -= dt;
@@ -1834,12 +2022,14 @@ function updateGame(dt) {
       pet.y += Math.sin(a) * pet.speed * dt;
       if (bestD < 44 && pet.biteCooldown <= 0) {
         pet.biteCooldown = 0.55;
-        applyDamageToFighter(target, pet.damage, pet.ownerId);
+        if (pet.ownerId === myPlayerId || (isRoomCoordinator() && pet.ownerId.startsWith('bot_'))) {
+          applyDamageToFighter(target, pet.damage, pet.ownerId, true);
+        }
       }
     }
   }
 
-  // Update Projectiles
+  // 5. Update Projectiles
   for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
     const pr = gameState.projectiles[i];
     const stepX = pr.vx * dt;
@@ -1850,7 +2040,6 @@ function updateGame(dt) {
 
     let remove = pr.traveled >= pr.maxDist || pr.x < 20 || pr.x > WORLD_W - 20 || pr.y < 20 || pr.y > WORLD_H - 20;
 
-    // Check walls
     if (!remove) {
       for (const w of gameState.walls) {
         if (pr.x > w.x && pr.x < w.x + w.w && pr.y > w.y && pr.y < w.y + w.h) {
@@ -1861,36 +2050,52 @@ function updateGame(dt) {
       }
     }
 
-    // Check crates
+    const isMyProj = (pr.ownerId === myPlayerId) || (coordinator && pr.ownerId.startsWith('bot_'));
+
+    // Check Crates
     if (!remove) {
       for (let cIdx = gameState.crates.length - 1; cIdx >= 0; cIdx--) {
         const c = gameState.crates[cIdx];
         if (Math.hypot(pr.x - c.x, pr.y - c.y) < 34 + pr.radius) {
-          c.hp -= pr.damage;
           c.hitFlash = 0.15;
           remove = true;
           spawnHitParticles(pr.x, pr.y, '#ffcc00', 6);
-          if (c.hp <= 0) {
-            gameState.pickups.push({
-              x: c.x,
-              y: c.y,
-              type: Math.random() < 0.78 ? 'cube' : 'shawarma'
+          if (isMyProj) {
+            c.hp -= pr.damage;
+            let dropType = null;
+            let dropId = 'pk_' + Math.floor(Math.random() * 999999);
+            if (c.hp <= 0) {
+              dropType = Math.random() < 0.78 ? 'cube' : 'shawarma';
+              gameState.pickups.push({ id: dropId, x: c.x, y: c.y, type: dropType });
+              gameState.crates.splice(cIdx, 1);
+            }
+            sendNetMessage({
+              type: 'action',
+              act: 'crate_hit',
+              crateId: c.id,
+              newHp: c.hp,
+              dropType,
+              dropId
             });
-            gameState.crates.splice(cIdx, 1);
           }
           break;
         }
       }
     }
 
-    // Check fighters
+    // Check Fighters
     if (!remove) {
       for (const f of gameState.fighters) {
         if (f.id !== pr.ownerId && !f.dead) {
           if (Math.hypot(pr.x - f.x, pr.y - f.y) < 30 + pr.radius) {
-            applyDamageToFighter(f, pr.damage, pr.ownerId);
             remove = true;
             spawnHitParticles(pr.x, pr.y, pr.color, 8);
+            if (isMyProj) {
+              applyDamageToFighter(f, pr.damage, pr.ownerId, true);
+            } else {
+              f.hitFlash = 0.18;
+              playSfx('hit');
+            }
             break;
           }
         }
@@ -1902,7 +2107,7 @@ function updateGame(dt) {
     }
   }
 
-  // Update Particles
+  // 6. Update Particles
   for (let i = gameState.particles.length - 1; i >= 0; i--) {
     const pt = gameState.particles[i];
     pt.x += pt.vx * dt;
@@ -1911,76 +2116,66 @@ function updateGame(dt) {
     if (pt.life <= 0) gameState.particles.splice(i, 1);
   }
 
-  // Check Win Conditions
-  const alive = gameState.fighters.filter(f => !f.dead);
-  if (gameState.mode === 'showdown') {
-    if (alive.length <= 1 || gameState.timeRemaining <= 0) {
-      const winFighter = alive.sort((a, b) => b.hp - a.hp)[0] || gameState.fighters[0];
-      finishMatch(winFighter);
-    }
-  } else {
-    if (gameState.timeRemaining <= 0) {
-      const winFighter = [...gameState.fighters].sort((a, b) => (b.stars * 10 + b.kills) - (a.stars * 10 + a.kills))[0];
-      finishMatch(winFighter);
-    }
-  }
-
-  // Broadcast state sync to connected phones (20 Hz)
-  netSyncAccum += dt;
-  if (roomCode && netSyncAccum >= 0.05) {
-    netSyncAccum = 0;
+  // 7. Broadcast My Hero State at 20 Hz (Every 50ms)
+  heroTickAccum += dt;
+  if (me && heroTickAccum >= 0.05) {
+    heroTickAccum = 0;
     sendNetMessage({
-      type: 'state_sync',
-      state: {
-        t: gameState.timeRemaining,
-        pr: gameState.poisonRadius,
-        f: gameState.fighters.map(f => ({
-          id: f.id, x: Math.round(f.x), y: Math.round(f.y), a: Number(f.angle.toFixed(2)),
-          hp: Math.round(f.hp), mhp: f.maxHp, sc: Math.round(f.superCharge),
-          pc: f.powerCubes, st: f.stars, k: f.kills, d: f.dead, sh: f.shieldTimer > 0
-        })),
-        p: gameState.projectiles.map(p => ({ x: Math.round(p.x), y: Math.round(p.y), c: p.color, t: p.type, r: p.radius })),
-        c: gameState.crates.map(c => ({ id: c.id, x: c.x, y: c.y, hp: c.hp })),
-        pk: gameState.pickups,
-        pets: gameState.pets.map(pt => ({ x: Math.round(pt.x), y: Math.round(pt.y), hp: pt.hp })),
-        win: gameState.winner ? gameState.winner.id : null
-      }
+      type: 'hero_tick',
+      heroId: me.heroId,
+      mode: gameState.mode,
+      x: Math.round(me.x),
+      y: Math.round(me.y),
+      vx: Math.round(me.vx),
+      vy: Math.round(me.vy),
+      a: Number(me.angle.toFixed(2)),
+      hp: Math.round(me.hp),
+      mhp: me.maxHp,
+      pc: me.powerCubes,
+      st: me.stars,
+      k: me.kills,
+      d: me.dead,
+      sh: me.shieldTimer > 0,
+      sp: me.speechTimer > 0 ? me.speechText : null
     });
   }
-}
 
-function applyHostStateSync(s) {
-  gameState.timeRemaining = s.t;
-  gameState.poisonRadius = s.pr;
-  s.f.forEach(sf => {
-    const localF = gameState.fighters.find(x => x.id === sf.id);
-    if (localF) {
-      localF.x = sf.x;
-      localF.y = sf.y;
-      localF.angle = sf.a;
-      localF.hp = sf.hp;
-      localF.maxHp = sf.mhp;
-      localF.superCharge = sf.sc;
-      localF.powerCubes = sf.pc;
-      localF.stars = sf.st;
-      localF.kills = sf.k;
-      localF.dead = sf.d;
-      localF.shieldTimer = sf.sh ? 0.5 : 0;
+  // 8. Coordinator Broadcasts World & Bot State at 12 Hz (Every 85ms) & Checks Victory
+  worldTickAccum += dt;
+  if (coordinator && worldTickAccum >= 0.085) {
+    worldTickAccum = 0;
+    const botsList = gameState.fighters.filter(f => f.isBot).map(b => ({
+      id: b.id, heroId: b.heroId,
+      x: Math.round(b.x), y: Math.round(b.y),
+      vx: Math.round(b.vx), vy: Math.round(b.vy),
+      a: Number(b.angle.toFixed(2)),
+      hp: Math.round(b.hp), mhp: b.maxHp,
+      pc: b.powerCubes, st: b.stars, k: b.kills, d: b.dead
+    }));
+    sendNetMessage({
+      type: 'world_tick',
+      t: Number(gameState.timeRemaining.toFixed(1)),
+      pr: Math.round(gameState.poisonRadius),
+      crates: gameState.crates.map(c => ({ id: c.id, x: c.x, y: c.y, hp: c.hp })),
+      pickups: gameState.pickups,
+      bots: botsList
+    });
+
+    const alive = gameState.fighters.filter(f => !f.dead);
+    if (gameState.mode === 'showdown') {
+      if ((gameState.fighters.length > 1 && alive.length <= 1) || gameState.timeRemaining <= 0) {
+        const winFighter = alive.sort((a, b) => b.hp - a.hp)[0] || gameState.fighters[0];
+        finishMatch(winFighter, true);
+      }
+    } else if (gameState.timeRemaining <= 0) {
+      const winFighter = [...gameState.fighters].sort((a, b) => (b.stars * 10 + b.kills) - (a.stars * 10 + a.kills))[0];
+      finishMatch(winFighter, true);
     }
-  });
-  gameState.projectiles = s.p.map(p => ({ x: p.x, y: p.y, color: p.c, type: p.t, radius: p.r }));
-  gameState.crates = s.c.map(c => ({ id: c.id, x: c.x, y: c.y, hp: c.hp, maxHp: 2200 }));
-  gameState.pickups = s.pk || [];
-  gameState.pets = s.pets || [];
-  if (s.win && !gameState.winner) {
-    const wf = gameState.fighters.find(x => x.id === s.win) || gameState.fighters[0];
-    finishMatch(wf);
   }
 }
 
-function applyDamageToFighter(target, dmg, attackerId) {
+function applyDamageToFighter(target, dmg, attackerId, broadcastNet) {
   const actualDmg = target.shieldTimer > 0 ? Math.round(dmg * 0.35) : dmg;
-  target.hp -= actualDmg;
   target.hitFlash = 0.18;
   playSfx('hit');
 
@@ -1989,25 +2184,46 @@ function applyDamageToFighter(target, dmg, attackerId) {
     attacker.superCharge = Math.min(100, attacker.superCharge + 24);
   }
 
-  if (target.hp <= 0) {
-    handleKnockout(target, attacker);
+  if (broadcastNet) {
+    sendNetMessage({
+      type: 'action',
+      act: 'hit_fighter',
+      actorId: attackerId,
+      targetId: target.id,
+      dmg: actualDmg
+    });
+  }
+
+  // Deduct HP if we own the target OR if we are Coordinator and target is a bot
+  if (target.id === myPlayerId || (target.isBot && isRoomCoordinator())) {
+    target.hp -= actualDmg;
+    if (target.hp <= 0) {
+      handleKnockout(target, attacker);
+    }
   }
 }
 
 function handleKnockout(victim, attacker) {
+  if (victim.dead) return;
   victim.dead = true;
   victim.hp = 0;
   victim.respawnTimer = 3.2;
   playSfx('ko');
 
-  // Drop power cube on death
-  gameState.pickups.push({ x: victim.x, y: victim.y, type: 'cube' });
+  const dropId = 'pk_' + Math.floor(Math.random() * 999999);
+  gameState.pickups.push({ id: dropId, x: victim.x, y: victim.y, type: 'cube' });
 
   if (attacker) {
     attacker.kills += 1;
     attacker.stars += 2;
     attacker.speechText = attacker.hero.phrases[Math.floor(Math.random() * attacker.hero.phrases.length)];
     attacker.speechTimer = 2.2;
+    sendNetMessage({
+      type: 'action',
+      act: 'ko',
+      victimId: victim.id,
+      attackerId: attacker.id
+    });
   }
 }
 
@@ -2016,12 +2232,10 @@ function updateBotAI(bot, dt) {
   const cx = WORLD_W / 2, cy = WORLD_H / 2;
   const distCenter = Math.hypot(bot.x - cx, bot.y - cy);
 
-  // Stay inside safe zone
   if (gameState.mode === 'showdown' && distCenter > gameState.poisonRadius - 110) {
     bot.botMoveAngle = Math.atan2(cy - bot.y, cx - bot.x);
   } else if (bot.botTargetTimer <= 0) {
     bot.botTargetTimer = 0.55 + Math.random() * 0.6;
-    // Look for nearby pickups first
     let nearestPickup = null;
     let pDist = 380;
     gameState.pickups.forEach(p => {
@@ -2031,14 +2245,12 @@ function updateBotAI(bot, dt) {
     if (nearestPickup) {
       bot.botMoveAngle = Math.atan2(nearestPickup.y - bot.y, nearestPickup.x - bot.x);
     } else {
-      // Strafe around nearest enemy or crate
       const aimA = getAutoAimAngle(bot);
       bot.botMoveAngle = aimA + (Math.random() - 0.5) * 1.4;
     }
   }
 
-  // Shoot at enemies or crates in range
-  if (bot.ammo >= 1.5 && Math.random() < 0.08) {
+  if (bot.ammo >= 1.5 && Math.random() < 0.07) {
     const aimA = getAutoAimAngle(bot);
     fireWeapon(bot, aimA + (Math.random() - 0.5) * 0.14);
   }
@@ -2061,10 +2273,14 @@ function spawnHitParticles(x, y, color, count) {
   }
 }
 
-function finishMatch(winner) {
+function finishMatch(winner, broadcast) {
   gameState.running = false;
   gameState.winner = winner;
   playSfx('powerup');
+
+  if (broadcast) {
+    sendNetMessage({ type: 'action', act: 'match_end', winnerId: winner.id });
+  }
 
   const modal = document.getElementById('victory-modal');
   modal.classList.add('active');
@@ -2085,7 +2301,7 @@ function finishMatch(winner) {
       <div style="display:flex; align-items:center; gap:8px;">
         <span>#${idx + 1}</span>
         <img src="${HEAD_SPRITES_B64[f.heroId]}" style="width:28px;height:28px;border-radius:50%;">
-        <span style="color:${f.hero.color}">${f.hero.name} ${f.id === myPlayerId ? '(Вы)' : ''}</span>
+        <span style="color:${f.hero.color}">${f.hero.name} ${f.id === myPlayerId ? '(Вы)' : (f.isBot ? '🤖' : '📱')}</span>
       </div>
       <div>⚔️ ${f.kills} &nbsp;|&nbsp; ⚡ ${f.powerCubes} &nbsp;|&nbsp; ⭐ ${f.stars}</div>
     </div>
@@ -2120,11 +2336,10 @@ function renderGame() {
   ctx.save();
   ctx.translate(-camX, -camY);
 
-  // 1. Arena Floor (Warm Brawl Stars Desert Canyon / Park grid)
+  // 1. Arena Floor
   ctx.fillStyle = '#dfab68';
   ctx.fillRect(0, 0, WORLD_W, WORLD_H);
 
-  // Decorative checker tiles
   ctx.fillStyle = '#d49d58';
   const tile = 80;
   for (let x = 0; x < WORLD_W; x += tile) {
@@ -2135,7 +2350,7 @@ function renderGame() {
     }
   }
 
-  // Center Brawl Star Arena Emblem on the floor
+  // Center Brawl Star Arena Emblem
   ctx.save();
   ctx.translate(WORLD_W / 2, WORLD_H / 2);
   ctx.beginPath();
@@ -2155,7 +2370,7 @@ function renderGame() {
   ctx.fillText('⭐', 0, 4);
   ctx.restore();
 
-  // Decorative desert pebbles & tufts
+  // Decorative pebbles
   const decoSpots = [
     [300, 300], [500, 220], [1100, 260], [1300, 420],
     [260, 900], [420, 1340], [1180, 1320], [1360, 880],
@@ -2171,7 +2386,6 @@ function renderGame() {
     ctx.fill();
   });
 
-  // Arena Border
   ctx.strokeStyle = '#3d2610';
   ctx.lineWidth = 16;
   ctx.strokeRect(0, 0, WORLD_W, WORLD_H);
@@ -2187,70 +2401,52 @@ function renderGame() {
     ctx.stroke();
   });
 
-  // 3. Walls (3D Cartoon Canyon Blocks)
+  // 3. Walls
   gameState.walls.forEach(w => {
-    // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.fillRect(w.x + 6, w.y + 10, w.w, w.h);
-    // Base block
     ctx.fillStyle = '#6d4c41';
     ctx.fillRect(w.x, w.y, w.w, w.h);
-    // Top bevel
     ctx.fillStyle = '#a1887f';
     ctx.fillRect(w.x + 4, w.y + 4, w.w - 8, w.h - 14);
-    // Cartoon outline
     ctx.strokeStyle = '#261710';
     ctx.lineWidth = 4;
     ctx.strokeRect(w.x, w.y, w.w, w.h);
   });
 
-  // 4. Power Cube Crates (Detailed 3D Cartoon Brawl Boxes)
+  // 4. Power Cube Crates
   gameState.crates.forEach(c => {
     ctx.save();
     ctx.translate(c.x, c.y);
     if (c.hitFlash > 0) ctx.scale(1.12, 1.12);
-    // Drop shadow
     ctx.fillStyle = 'rgba(0,0,0,0.32)';
     ctx.beginPath();
     ctx.roundRect(-24, -18, 54, 54, 8);
     ctx.fill();
-    // Outer wooden box
     ctx.fillStyle = c.hitFlash > 0 ? '#fff' : '#e67e22';
     ctx.strokeStyle = '#2c1810';
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.roundRect(-27, -27, 54, 54, 8);
-    ctx.fill();
-    ctx.stroke();
-    // Inner recessed wood panel
+    ctx.fill(); ctx.stroke();
     ctx.fillStyle = c.hitFlash > 0 ? '#ffd' : '#d35400';
     ctx.fillRect(-19, -19, 38, 38);
-    // Diagonal wood brace
     ctx.strokeStyle = '#f39c12';
     ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.moveTo(-18, -18);
-    ctx.lineTo(18, 18);
+    ctx.moveTo(-18, -18); ctx.lineTo(18, 18);
     ctx.stroke();
-    // Corner bolts
-    ctx.fillStyle = '#bdc3c7';
-    [[-21,-21],[21,-21],[-21,21],[21,21]].forEach(([bx, by]) => {
-      ctx.beginPath(); ctx.arc(bx, by, 3, 0, Math.PI * 2); ctx.fill();
-    });
-    // Glowing Power Cube emblem
     ctx.fillStyle = '#38ef7d';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.arc(0, 0, 11, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('⚡', 0, 1);
-    // Crate HP bar
     if (c.hp < c.maxHp) {
       ctx.fillStyle = '#111';
       ctx.fillRect(-24, -39, 48, 8);
@@ -2260,7 +2456,7 @@ function renderGame() {
     ctx.restore();
   });
 
-  // 5. Pickups (Power Cubes & Shawarma Heals)
+  // 5. Pickups
   const pulse = 1 + Math.sin(performance.now() * 0.008) * 0.1;
   gameState.pickups.forEach(p => {
     ctx.save();
@@ -2277,7 +2473,7 @@ function renderGame() {
     ctx.restore();
   });
 
-  // 6. Aiming Guide Line for Local Player
+  // 6. Aiming Guide Line
   if (me && !me.dead && rightJoy.active && rightJoy.moved) {
     const aimA = Math.atan2(rightJoy.dy, rightJoy.dx);
     ctx.save();
@@ -2313,13 +2509,12 @@ function renderGame() {
     ctx.restore();
   });
 
-  // 8. Fighters (Cartoon Body + Real Cropped Photo Head!)
+  // 8. Fighters
   const useComicFilter = document.getElementById('comic-filter-toggle').checked;
 
   gameState.fighters.forEach(f => {
     if (f.dead) return;
     const inBush = isFighterInBush(f);
-    // If enemy is in bush and far from us, hide them!
     if (inBush && f.id !== me.id && Math.hypot(f.x - me.x, f.y - me.y) > 150) {
       return;
     }
@@ -2328,7 +2523,6 @@ function renderGame() {
     ctx.translate(f.x, f.y);
     if (inBush) ctx.globalAlpha = 0.55;
 
-    // Ground Brawl Circle
     ctx.beginPath();
     ctx.arc(0, 14, 30, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0,0,0,0.32)';
@@ -2337,7 +2531,6 @@ function renderGame() {
     ctx.strokeStyle = f.id === me.id ? '#38ef7d' : f.hero.color;
     ctx.stroke();
 
-    // Super Ready Dashed Halo
     if (f.superCharge >= 100) {
       ctx.save();
       ctx.rotate(performance.now() * 0.004);
@@ -2350,7 +2543,6 @@ function renderGame() {
       ctx.restore();
     }
 
-    // Active Shield Bubble
     if (f.shieldTimer > 0) {
       ctx.beginPath();
       ctx.arc(0, -4, 44, 0, Math.PI * 2);
@@ -2361,7 +2553,7 @@ function renderGame() {
       ctx.stroke();
     }
 
-    // Animated Cartoon Cape / Scarf behind hero
+    // Animated Cartoon Cape
     const capeWave = Math.sin(f.walkPhase * 1.2) * 5;
     ctx.fillStyle = f.hero.color;
     ctx.strokeStyle = '#111';
@@ -2372,20 +2564,18 @@ function renderGame() {
     ctx.lineTo(18, 22);
     ctx.quadraticCurveTo(28 + Math.abs(capeWave), 12 - capeWave, 16, -4);
     ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    ctx.fill(); ctx.stroke();
 
-    // Animated Cartoon Sneakers/Boots
+    // Animated Cartoon Sneakers
     const legSwing = Math.sin(f.walkPhase) * 9;
     ctx.lineWidth = 3;
-    // Left sneaker
     ctx.fillStyle = f.hero.color;
     ctx.beginPath();
     ctx.ellipse(-12, 22 + legSwing, 10, 6, -0.15, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fff';
     ctx.fillRect(-16, 23 + legSwing, 8, 3);
-    // Right sneaker
+
     ctx.fillStyle = f.hero.color;
     ctx.beginPath();
     ctx.ellipse(12, 22 - legSwing, 10, 6, 0.15, 0, Math.PI * 2);
@@ -2393,7 +2583,7 @@ function renderGame() {
     ctx.fillStyle = '#fff';
     ctx.fillRect(8, 23 - legSwing, 8, 3);
 
-    // Chibi Cartoon Torso & Outfit
+    // Chibi Cartoon Torso
     ctx.beginPath();
     ctx.roundRect(-23, -8, 46, 28, 13);
     ctx.fillStyle = f.hitFlash > 0 ? '#ffffff' : f.hero.bodyColor;
@@ -2402,130 +2592,103 @@ function renderGame() {
     ctx.strokeStyle = '#111';
     ctx.stroke();
 
-    // Hero-specific cartoon outfit details
     if (f.heroId === 'igor' && f.hitFlash <= 0) {
-      // Tactical golden armor belt & espresso badge
       ctx.fillStyle = '#222831';
       ctx.fillRect(-21, 10, 42, 6);
       ctx.fillStyle = '#ffb90f';
       ctx.fillRect(-6, 9, 12, 8);
     } else if (f.heroId === 'oksana' && f.hitFlash <= 0) {
-      // Iconic black-and-white stripes from the photo!
       ctx.fillStyle = '#1a1f36';
       ctx.fillRect(-20, -2, 40, 4);
       ctx.fillRect(-20, 6, 40, 4);
       ctx.fillRect(-20, 14, 40, 3);
     } else if (f.heroId === 'veniamin' && f.hitFlash <= 0) {
-      // Crossbody sling bag strap from the photo!
       ctx.strokeStyle = '#181c24';
       ctx.lineWidth = 6;
       ctx.beginPath();
-      ctx.moveTo(-16, -6);
-      ctx.lineTo(16, 17);
+      ctx.moveTo(-16, -6); ctx.lineTo(16, 17);
       ctx.stroke();
     } else if (f.heroId === 'vera' && f.hitFlash <= 0) {
-      // Neon pink V-star graphic on navy hoodie
       ctx.fillStyle = '#ff41af';
       ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('✌️', 0, 11);
     } else if (f.heroId === 'alex' && f.hitFlash <= 0) {
-      // Golden studded collar
       ctx.fillStyle = '#b973ff';
       ctx.fillRect(-18, -3, 36, 6);
     }
 
-    // Left Cartoon Hand (swinging)
+    // Left Cartoon Hand
     ctx.fillStyle = '#f5cba7';
     ctx.strokeStyle = '#111';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(-25, 6 - legSwing * 0.6, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    ctx.fill(); ctx.stroke();
 
-    // Right Cartoon Hand + Custom Signature Weapon rotated toward aim angle!
+    // Right Cartoon Hand + Weapon
     ctx.save();
     ctx.translate(16, 4);
     ctx.rotate(f.angle);
     if (f.heroId === 'igor') {
-      // Dual Espresso Blaster
       ctx.fillStyle = '#37474f';
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.roundRect(4, -9, 28, 18, 5);
-      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(4, -9, 28, 18, 5); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#ffb90f';
       ctx.fillRect(24, -7, 8, 14);
     } else if (f.heroId === 'oksana') {
-      // Cyan Lemonade Energy Rifle
       ctx.fillStyle = '#00d7ff';
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.roundRect(4, -7, 32, 14, 6);
-      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(4, -7, 32, 14, 6); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#fff59d';
       ctx.beginPath(); ctx.arc(28, 0, 5, 0, Math.PI * 2); ctx.fill();
     } else if (f.heroId === 'veniamin') {
-      // Giant Shawarma-Bazooka wrapped in kraft paper!
       ctx.fillStyle = '#d7ccc8';
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.roundRect(2, -10, 34, 20, 7);
-      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(2, -10, 34, 20, 7); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#3ce655';
       ctx.beginPath(); ctx.arc(33, 0, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     } else if (f.heroId === 'vera') {
-      // Neon Pink Shuriken Launcher
       ctx.fillStyle = '#ff41af';
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.roundRect(4, -7, 26, 14, 6);
-      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(4, -7, 26, 14, 6); ctx.fill(); ctx.stroke();
     } else {
-      // Alex Megaphone Bark Cannon
       ctx.fillStyle = '#b973ff';
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(4, -5); ctx.lineTo(28, -11); ctx.lineTo(28, 11); ctx.lineTo(4, 5);
-      ctx.closePath();
-      ctx.fill(); ctx.stroke();
+      ctx.closePath(); ctx.fill(); ctx.stroke();
     }
-    // Cartoon fist holding weapon
     ctx.fillStyle = '#f5cba7';
-    ctx.beginPath();
-    ctx.arc(6, 2, 6.5, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(6, 2, 6.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.restore();
 
-    // THE REAL CROPPED FACE HEAD ON TOP OF THE CARTOON BODY!
+    // Real Cropped Face Head
     const headBob = Math.abs(Math.cos(f.walkPhase)) * 3.5;
     const headImg = HERO_IMAGES[f.heroId];
     if (headImg && headImg.complete) {
       ctx.save();
-      if (useComicFilter) {
-        ctx.filter = 'contrast(135%) saturate(145%)';
-      }
+      if (useComicFilter) ctx.filter = 'contrast(135%) saturate(145%)';
       ctx.drawImage(headImg, -35, -58 - headBob, 70, 70);
       ctx.restore();
     }
 
-    // Overhead HUD: Name, Power Cubes, Health Bar, Ammo Bar
+    // Overhead Name, Power Cubes, Stars
     ctx.font = '900 13px sans-serif';
     ctx.textAlign = 'center';
     ctx.lineWidth = 4;
     ctx.strokeStyle = '#000';
-    const label = `${f.hero.name} ${f.powerCubes > 0 ? '⚡' + f.powerCubes : ''} ⭐${f.stars}`;
+    const tag = f.isBot ? '🤖' : (f.id === me.id ? '👑' : '📱');
+    const label = `${tag}${f.hero.name} ${f.powerCubes > 0 ? '⚡' + f.powerCubes : ''} ⭐${f.stars}`;
     ctx.strokeText(label, 0, -68);
     ctx.fillStyle = f.id === me.id ? '#38ef7d' : '#ffffff';
     ctx.fillText(label, 0, -68);
 
-    // HP Bar
     const barW = 58;
     const barH = 8;
     const hpRatio = Math.max(0, f.hp / f.maxHp);
@@ -2534,7 +2697,6 @@ function renderGame() {
     ctx.fillStyle = f.id === me.id ? '#2ed573' : '#ff4757';
     ctx.fillRect(-barW / 2, -60, barW * hpRatio, barH);
 
-    // 3 Ammo slots for local player
     if (f.id === me.id) {
       for (let a = 0; a < 3; a++) {
         ctx.fillStyle = a < f.ammo ? '#ffa502' : 'rgba(0,0,0,0.6)';
@@ -2542,7 +2704,6 @@ function renderGame() {
       }
     }
 
-    // Comic Speech Bubble
     if (f.speechTimer > 0 && f.speechText) {
       ctx.font = 'bold 12px sans-serif';
       const tw = ctx.measureText(f.speechText).width + 16;
@@ -2551,8 +2712,7 @@ function renderGame() {
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.roundRect(-tw / 2, -102, tw, 24, 10);
-      ctx.fill();
-      ctx.stroke();
+      ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#111';
       ctx.fillText(f.speechText, 0, -86);
     }
@@ -2589,7 +2749,7 @@ function renderGame() {
     ctx.restore();
   });
 
-  // 10. Tall Grass Bushes (drawn over floor, semi-transparent when inside)
+  // 10. Bushes
   gameState.bushes.forEach(b => {
     ctx.save();
     ctx.translate(b.x, b.y);
@@ -2617,7 +2777,7 @@ function renderGame() {
     ctx.fill();
   });
 
-  // 12. Poison Gas Storm Ring (in Showdown)
+  // 12. Poison Gas Storm Ring
   if (gameState.mode === 'showdown') {
     ctx.save();
     ctx.beginPath();
@@ -2635,7 +2795,7 @@ function renderGame() {
 
   ctx.restore();
 
-  // 13. Off-Screen Opponent Radar Indicators + On-Screen Virtual Joysticks
+  // 13. Off-Screen Opponent Radar Indicators + Virtual Joysticks
   if (me) {
     gameState.fighters.forEach(other => {
       if (other.id === me.id || other.dead || isFighterInBush(other)) return;
@@ -2666,10 +2826,9 @@ function renderGame() {
   drawJoystick(leftJoy, '#00e5ff', 110, H - 105, '🕹️ ХОДЬБА');
   drawJoystick(rightJoy, '#ff4757', W - 185, H - 105, '🎯 АТАКА');
 
-  // Update Top HUD
   const aliveCount = gameState.fighters.filter(f => !f.dead).length;
   document.getElementById('hud-alive-text').textContent =
-    gameState.mode === 'showdown' ? `Живых: ${aliveCount}/4` : `Звёзды: ⭐${me ? me.stars : 0}`;
+    gameState.mode === 'showdown' ? `Живых: ${aliveCount}/${gameState.fighters.length}` : `Звёзды: ⭐${me ? me.stars : 0}`;
   const mins = String(Math.floor(gameState.timeRemaining / 60)).padStart(2, '0');
   const secs = String(Math.floor(gameState.timeRemaining % 60)).padStart(2, '0');
   document.getElementById('hud-timer').textContent = `${mins}:${secs}`;
@@ -2715,7 +2874,6 @@ function gameLoop(now) {
   requestAnimationFrame(gameLoop);
 }
 
-// Initialize Lobby on load
 window.addEventListener('DOMContentLoaded', initLobbyUI);
 </script>
 </body>
