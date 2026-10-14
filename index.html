@@ -484,8 +484,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
 <!-- ==================== LOBBY SCREEN ==================== -->
 <div id="lobby-screen" class="screen active">
-  <div class="brawl-title">⚡ FAMILY BRAWL ⚡</div>
-  <div class="brawl-subtitle">Семейная Битва Всех Против Всех • Синхронизация в реальном времени</div>
+  <div class="brawl-title">⚡ FAMILY BRAWL v3.0 ⚡</div>
+  <div class="brawl-subtitle">Версия 3.0 • 4 Карты Арены + 4 Сложности Ботов + Реал-Тайм Мультиплеер</div>
 
   <!-- STEP 1: CHOOSE HERO -->
   <div class="lobby-card">
@@ -511,6 +511,36 @@ window.addEventListener("DOMContentLoaded", () => {
       </div>
       <div class="mode-pill" data-mode="bounty" onclick="selectMode('bounty')">
         ⭐ <b>Кубок Семьи (2 мин)</b> — Возрождение + битва за звёзды
+      </div>
+    </div>
+
+    <!-- ARENA TYPE SELECTOR -->
+    <div style="font-size:11px; font-weight:900; color:var(--cyan); text-transform:uppercase; margin: 6px 0 5px;">
+      🗺️ Выбери карту арены:
+    </div>
+    <div class="mode-selector" id="arena-selector" style="margin-bottom: 8px;">
+      <div class="mode-pill active" data-arena="canyon" onclick="selectArena('canyon')">
+        🌵 <b>Каньон Шаурмы</b><br><span style="font-size:9.5px; color:#9cb0ec;">Классика • Оазисы</span>
+      </div>
+      <div class="mode-pill" data-arena="beach" onclick="selectArena('beach')">
+        🌴 <b>Пляж Бат-Яма</b><br><span style="font-size:9.5px; color:#9cb0ec;">Море • Турбо-батуты</span>
+      </div>
+      <div class="mode-pill" data-arena="lava" onclick="selectArena('lava')">
+        🌋 <b>Кибер-Вулкан</b><br><span style="font-size:9.5px; color:#9cb0ec;">Опасная лава • Много ящиков</span>
+      </div>
+      <div class="mode-pill" data-arena="ice" onclick="selectArena('ice')">
+        ❄️ <b>Ледяной Парк</b><br><span style="font-size:9.5px; color:#9cb0ec;">Ускоряющий лёд • Лабиринт</span>
+      </div>
+    </div>
+
+    <!-- BOT DIFFICULTY SELECTOR -->
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom: 8px;">
+      <span style="font-size:11px; font-weight:900; color:var(--gold); text-transform:uppercase;">🤖 Сложность ботов:</span>
+      <div style="display:flex; gap:6px; flex:1; min-width:260px;" id="diff-selector">
+        <div class="room-chip" data-diff="easy" onclick="selectBotDiff('easy')">🐣 Лёгкие</div>
+        <div class="room-chip active" data-diff="normal" onclick="selectBotDiff('normal')">🤖 Средние</div>
+        <div class="room-chip" data-diff="hard" onclick="selectBotDiff('hard')">🔥 Сложные</div>
+        <div class="room-chip" data-diff="insane" onclick="selectBotDiff('insane')">💀 Киберкотлеты</div>
       </div>
     </div>
 
@@ -789,7 +819,51 @@ const myPlayerId = 'p_' + Math.random().toString(36).substring(2, 8);
 // Pick a random initial hero so 4 phones opening the page don't all default to the exact same hero
 let selectedHeroId = HEROES[Math.floor(Math.random() * 4)].id;
 let selectedMode = 'showdown';
+let selectedArena = 'canyon';
+let botDifficulty = 'normal';
 let fillBotsEnabled = true;
+
+const BOT_DIFF_CONFIG = {
+  easy:   { label: '🐣 Лёгкие',       speedMult: 0.74, dmgMult: 0.72, hpMult: 0.85, fireChance: 0.032, scatter: 0.42, superChance: 0.025, leadAim: 0.0 },
+  normal: { label: '🤖 Средние',      speedMult: 0.94, dmgMult: 1.00, hpMult: 1.00, fireChance: 0.068, scatter: 0.16, superChance: 0.060, leadAim: 0.35 },
+  hard:   { label: '🔥 Сложные',      speedMult: 1.06, dmgMult: 1.15, hpMult: 1.12, fireChance: 0.115, scatter: 0.06, superChance: 0.110, leadAim: 0.75 },
+  insane: { label: '💀 Киберкотлеты', speedMult: 1.16, dmgMult: 1.30, hpMult: 1.25, fireChance: 0.165, scatter: 0.02, superChance: 0.180, leadAim: 1.00 }
+};
+
+const ARENA_THEMES = {
+  canyon: {
+    name: 'Каньон Шаурмы',
+    floorA: '#dfab68', floorB: '#d49d58', border: '#3d2610',
+    wallBase: '#6d4c41', wallTop: '#a1887f', wallOut: '#261710',
+    bushMain: '#2ecc71', bushInner: '#58d68d', bushOut: '#145a32',
+    hazardType: 'water', hazardFill: '#29b6f6', hazardStroke: '#fff59d',
+    decoColor: '#b8813d', centerIcon: '⭐'
+  },
+  beach: {
+    name: 'Пляж Бат-Яма',
+    floorA: '#f7dc6f', floorB: '#f4d03f', border: '#0e6251',
+    wallBase: '#117864', wallTop: '#48c9b0', wallOut: '#0b5345',
+    bushMain: '#27ae60', bushInner: '#82e0aa', bushOut: '#196f3d',
+    hazardType: 'water', hazardFill: '#00d2ff', hazardStroke: '#ffffff',
+    decoColor: '#d4ac0d', centerIcon: '🏖️'
+  },
+  lava: {
+    name: 'Кибер-Вулкан',
+    floorA: '#2c2f3e', floorB: '#232634', border: '#ff3838',
+    wallBase: '#3c40c6', wallTop: '#575fcf', wallOut: '#1e272e',
+    bushMain: '#8e44ad', bushInner: '#bb8fce', bushOut: '#4a235a',
+    hazardType: 'lava', hazardFill: '#ff5252', hazardStroke: '#ffda79',
+    decoColor: '#1e202b', centerIcon: '🌋'
+  },
+  ice: {
+    name: 'Ледяной Парк',
+    floorA: '#dff9fb', floorB: '#c7ecee', border: '#130f40',
+    wallBase: '#487eb0', wallTop: '#7ed6df', wallOut: '#192a56',
+    bushMain: '#0097e6', bushInner: '#74b9ff', bushOut: '#192a56',
+    hazardType: 'ice', hazardFill: '#7ed6df', hazardStroke: '#ffffff',
+    decoColor: '#95afc0', centerIcon: '❄️'
+  }
+};
 let roomCode = 'MIRSON';
 let roomTopic = 'fb_mirson_rt_v2_MIRSON';
 
@@ -868,6 +942,8 @@ function initLobbyUI() {
       type: 'heartbeat',
       player: { id: myPlayerId, heroId: selectedHeroId },
       mode: selectedMode,
+      arena: selectedArena,
+      botDiff: botDifficulty,
       fillBots: fillBotsEnabled,
       inMatch: gameState.running
     });
@@ -912,18 +988,56 @@ function selectHero(heroId) {
   updateRosterUI();
 }
 
+function syncLobbySettingsUI() {
+  document.querySelectorAll('[data-mode]').forEach(el => {
+    el.classList.toggle('active', el.dataset.mode === selectedMode);
+  });
+  document.querySelectorAll('[data-arena]').forEach(el => {
+    el.classList.toggle('active', el.dataset.arena === selectedArena);
+  });
+  document.querySelectorAll('[data-diff]').forEach(el => {
+    el.classList.toggle('active', el.dataset.diff === botDifficulty);
+  });
+  document.getElementById('fill-bots-toggle').checked = fillBotsEnabled;
+}
+
+function broadcastSettingsChange() {
+  sendNetMessage({
+    type: 'mode_change',
+    mode: selectedMode,
+    arena: selectedArena,
+    botDiff: botDifficulty,
+    fillBots: fillBotsEnabled
+  });
+}
+
 function selectMode(mode) {
   selectedMode = mode;
-  document.querySelectorAll('.mode-pill').forEach(el => {
-    el.classList.toggle('active', el.dataset.mode === mode);
-  });
-  sendNetMessage({ type: 'mode_change', mode: selectedMode, fillBots: fillBotsEnabled });
+  syncLobbySettingsUI();
+  broadcastSettingsChange();
+}
+
+function selectArena(arena) {
+  selectedArena = arena;
+  initAudio();
+  playSfx('powerup');
+  syncLobbySettingsUI();
+  broadcastSettingsChange();
+}
+
+function selectBotDiff(diff) {
+  botDifficulty = diff;
+  initAudio();
+  playSfx('powerup');
+  syncLobbySettingsUI();
+  updateRosterUI();
+  broadcastSettingsChange();
 }
 
 function onFillBotsChanged() {
   fillBotsEnabled = document.getElementById('fill-bots-toggle').checked;
   updateRosterUI();
-  sendNetMessage({ type: 'mode_change', mode: selectedMode, fillBots: fillBotsEnabled });
+  broadcastSettingsChange();
 }
 
 function updateNetStatusBadge() {
@@ -977,7 +1091,7 @@ function updateRosterUI() {
         <img src="${HEAD_SPRITES_B64[h.id]}" style="opacity:0.75;">
         <div>
           <div style="color:#b8c7ff">${h.name}</div>
-          <div style="font-size:10px; color:#ffd966;">🤖 Смарт-Бот</div>
+          <div style="font-size:10px; color:#ffd966;">${(BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.normal).label}</div>
         </div>
       `;
     } else {
@@ -1227,8 +1341,8 @@ function createFighterObject(id, heroId, isBot, spawnIndex) {
     vx: 0,
     vy: 0,
     angle: Math.atan2(WORLD_H / 2 - sp.y, WORLD_W / 2 - sp.x),
-    hp: h.hp,
-    maxHp: h.hp,
+    hp: isBot ? Math.round(h.hp * ((BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.normal).hpMult)) : h.hp,
+    maxHp: isBot ? Math.round(h.hp * ((BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.normal).hpMult)) : h.hp,
     ammo: 3,
     maxAmmo: 3,
     ammoReloadTimer: 0,
@@ -1310,15 +1424,17 @@ function handleNetMessage(msg) {
     }
   } else if (msg.type === 'mode_change') {
     selectedMode = msg.mode || selectedMode;
+    selectedArena = msg.arena || selectedArena;
+    botDifficulty = msg.botDiff || botDifficulty;
     fillBotsEnabled = msg.fillBots !== undefined ? msg.fillBots : fillBotsEnabled;
-    document.getElementById('fill-bots-toggle').checked = fillBotsEnabled;
-    document.querySelectorAll('.mode-pill').forEach(el => {
-      el.classList.toggle('active', el.dataset.mode === selectedMode);
-    });
+    syncLobbySettingsUI();
     updateRosterUI();
   } else if (msg.type === 'start_match') {
     selectedMode = msg.mode || selectedMode;
+    selectedArena = msg.arena || selectedArena;
+    botDifficulty = msg.botDiff || botDifficulty;
     fillBotsEnabled = msg.fillBots !== undefined ? msg.fillBots : fillBotsEnabled;
+    syncLobbySettingsUI();
     if (msg.players) {
       msg.players.forEach(p => {
         lobbyPlayers[p.id] = { id: p.id, heroId: p.heroId, lastSeen: Date.now() };
@@ -1440,6 +1556,8 @@ function handleStartMatchBtn() {
   sendNetMessage({
     type: 'start_match',
     mode: selectedMode,
+    arena: selectedArena,
+    botDiff: botDifficulty,
     fillBots: fillBotsEnabled,
     players: playersList
   });
@@ -1447,32 +1565,134 @@ function handleStartMatchBtn() {
 }
 
 function buildArenaMap() {
-  gameState.walls = [
-    { x: 460, y: 460, w: 150, h: 70 },
-    { x: 990, y: 460, w: 150, h: 70 },
-    { x: 460, y: 1070, w: 150, h: 70 },
-    { x: 990, y: 1070, w: 150, h: 70 },
-    { x: 460, y: 530, w: 70, h: 120 },
-    { x: 1070, y: 530, w: 70, h: 120 },
-    { x: 460, y: 950, w: 70, h: 120 },
-    { x: 1070, y: 950, w: 70, h: 120 },
-    { x: 730, y: 260, w: 140, h: 65 },
-    { x: 730, y: 1275, w: 140, h: 65 },
-    { x: 260, y: 730, w: 65, h: 140 },
-    { x: 1275, y: 730, w: 65, h: 140 }
-  ];
+  gameState.jumpPads = [];
+  let crateSpots = [];
+  let bushClusters = [];
 
-  gameState.water = [
-    { x: 650, y: 650, r: 52 },
-    { x: 950, y: 950, r: 52 }
-  ];
+  if (selectedArena === 'beach') {
+    // Bat Yam Beach: Open boardwalk lanes, large sea lagoons, and 4 Turbo Jump Pads!
+    gameState.walls = [
+      { x: 540, y: 420, w: 120, h: 60 },
+      { x: 940, y: 420, w: 120, h: 60 },
+      { x: 540, y: 1120, w: 120, h: 60 },
+      { x: 940, y: 1120, w: 120, h: 60 },
+      { x: 340, y: 740, w: 65, h: 120 },
+      { x: 1195, y: 740, w: 65, h: 120 }
+    ];
+    gameState.water = [
+      { x: 580, y: 800, r: 78 },
+      { x: 1020, y: 800, r: 78 },
+      { x: 800, y: 540, r: 55 },
+      { x: 800, y: 1060, r: 55 }
+    ];
+    gameState.jumpPads = [
+      { x: 360, y: 360, vx: 380, vy: 380 },
+      { x: 1240, y: 360, vx: -380, vy: 380 },
+      { x: 360, y: 1240, vx: 380, vy: -380 },
+      { x: 1240, y: 1240, vx: -380, vy: -380 }
+    ];
+    bushClusters = [
+      [480, 560], [1120, 560], [480, 1040], [1120, 1040],
+      [800, 700], [800, 900], [230, 800], [1370, 800]
+    ];
+    crateSpots = [
+      [740, 760], [860, 760], [740, 840], [860, 840],
+      [460, 340], [1140, 340], [460, 1260], [1140, 1260],
+      [680, 380], [920, 380], [680, 1220], [920, 1220]
+    ];
+  } else if (selectedArena === 'lava') {
+    // Cyber Volcano: Lava pools deal burn damage, fortified bunker walls, rich central crate cluster!
+    gameState.walls = [
+      { x: 620, y: 520, w: 110, h: 65 },
+      { x: 870, y: 520, w: 110, h: 65 },
+      { x: 620, y: 1015, w: 110, h: 65 },
+      { x: 870, y: 1015, w: 110, h: 65 },
+      { x: 380, y: 380, w: 120, h: 65 },
+      { x: 1100, y: 380, w: 120, h: 65 },
+      { x: 380, y: 1155, w: 120, h: 65 },
+      { x: 1100, y: 1155, w: 120, h: 65 }
+    ];
+    gameState.water = [
+      { x: 540, y: 800, r: 68 },
+      { x: 1060, y: 800, r: 68 },
+      { x: 800, y: 360, r: 62 },
+      { x: 800, y: 1240, r: 62 }
+    ];
+    bushClusters = [
+      [340, 620], [1260, 620], [340, 980], [1260, 980],
+      [680, 660], [920, 660], [680, 940], [920, 940]
+    ];
+    crateSpots = [
+      [730, 730], [800, 730], [870, 730],
+      [730, 800], [870, 800],
+      [730, 870], [800, 870], [870, 870],
+      [450, 800], [1150, 800], [800, 480], [800, 1120]
+    ];
+  } else if (selectedArena === 'ice') {
+    // Ice Park: Slippery speed-boost ice rinks + close-quarters labyrinth walls!
+    gameState.walls = [
+      { x: 580, y: 360, w: 70, h: 200 },
+      { x: 950, y: 360, w: 70, h: 200 },
+      { x: 580, y: 1040, w: 70, h: 200 },
+      { x: 950, y: 1040, w: 70, h: 200 },
+      { x: 360, y: 580, w: 200, h: 70 },
+      { x: 1040, y: 580, w: 200, h: 70 },
+      { x: 360, y: 950, w: 200, h: 70 },
+      { x: 1040, y: 950, w: 200, h: 70 },
+      { x: 755, y: 640, w: 90, h: 60 },
+      { x: 755, y: 900, w: 90, h: 60 }
+    ];
+    // Ice rinks (give +45% speed boost when stepped on!)
+    gameState.water = [
+      { x: 800, y: 800, r: 95 },
+      { x: 460, y: 460, r: 72 },
+      { x: 1140, y: 460, r: 72 },
+      { x: 460, y: 1140, r: 72 },
+      { x: 1140, y: 1140, r: 72 }
+    ];
+    bushClusters = [
+      [700, 460], [900, 460], [700, 1140], [900, 1140],
+      [460, 700], [1140, 700], [460, 900], [1140, 900],
+      [640, 800], [960, 800]
+    ];
+    crateSpots = [
+      [750, 760], [850, 760], [750, 840], [850, 840],
+      [500, 500], [1100, 500], [500, 1100], [1100, 1100],
+      [800, 540], [800, 1060], [540, 800], [1060, 800]
+    ];
+  } else {
+    // Classic Canyon
+    gameState.walls = [
+      { x: 460, y: 460, w: 150, h: 70 },
+      { x: 990, y: 460, w: 150, h: 70 },
+      { x: 460, y: 1070, w: 150, h: 70 },
+      { x: 990, y: 1070, w: 150, h: 70 },
+      { x: 460, y: 530, w: 70, h: 120 },
+      { x: 1070, y: 530, w: 70, h: 120 },
+      { x: 460, y: 950, w: 70, h: 120 },
+      { x: 1070, y: 950, w: 70, h: 120 },
+      { x: 730, y: 260, w: 140, h: 65 },
+      { x: 730, y: 1275, w: 140, h: 65 },
+      { x: 260, y: 730, w: 65, h: 140 },
+      { x: 1275, y: 730, w: 65, h: 140 }
+    ];
+    gameState.water = [
+      { x: 650, y: 650, r: 52 },
+      { x: 950, y: 950, r: 52 }
+    ];
+    bushClusters = [
+      [360, 360], [1240, 360], [360, 1240], [1240, 1240],
+      [800, 560], [800, 1040], [560, 800], [1040, 800],
+      [220, 520], [1380, 520], [220, 1080], [1380, 1080]
+    ];
+    crateSpots = [
+      [750, 750], [850, 750], [750, 850], [850, 850],
+      [390, 660], [1210, 660], [390, 940], [1210, 940],
+      [660, 390], [940, 390], [660, 1210], [940, 1210]
+    ];
+  }
 
   gameState.bushes = [];
-  const bushClusters = [
-    [360, 360], [1240, 360], [360, 1240], [1240, 1240],
-    [800, 560], [800, 1040], [560, 800], [1040, 800],
-    [220, 520], [1380, 520], [220, 1080], [1380, 1080]
-  ];
   bushClusters.forEach(([cx, cy]) => {
     for (let dx = -1; dx <= 1; dx++) {
       gameState.bushes.push({ x: cx + dx * 38, y: cy, r: 34 });
@@ -1480,11 +1700,6 @@ function buildArenaMap() {
   });
 
   gameState.crates = [];
-  const crateSpots = [
-    [750, 750], [850, 750], [750, 850], [850, 850],
-    [390, 660], [1210, 660], [390, 940], [1210, 940],
-    [660, 390], [940, 390], [660, 1210], [940, 1210]
-  ];
   crateSpots.forEach(([cx, cy], i) => {
     gameState.crates.push({
       id: 'c_' + i,
@@ -1723,7 +1938,8 @@ function spawnProjectilesLocal(f, angle) {
   if (!f) return;
   playSfx('shoot');
   const h = f.hero;
-  const dmgScale = 1 + (f.powerCubes || 0) * 0.12;
+  const botDmgMult = f.isBot ? ((BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.normal).dmgMult) : 1.0;
+  const dmgScale = (1 + (f.powerCubes || 0) * 0.12) * botDmgMult;
   const count = h.projCount;
   for (let i = 0; i < count; i++) {
     const offset = count === 1 ? 0 : (i - (count - 1) / 2) * (h.spread / (count - 1 || 1));
@@ -1951,11 +2167,43 @@ function updateGame(dt) {
 
       if (f.isBot) {
         updateBotAI(f, dt);
-        const spd = f.hero.speed * (f.speedBoostTimer > 0 ? 1.45 : 1.0);
+        const diffCfg = BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.normal;
+        const spd = f.hero.speed * diffCfg.speedMult * (f.speedBoostTimer > 0 ? 1.45 : 1.0);
         f.vx = Math.cos(f.botMoveAngle) * spd;
         f.vy = Math.sin(f.botMoveAngle) * spd;
         moveWithWallCollisions(f, dt);
         if (Math.hypot(f.vx, f.vy) > 15) f.walkPhase += dt * 11;
+      }
+
+      // Arena Special Zone Mechanics (Lava Burn, Ice Boost, Beach Jump Pads)
+      const theme = ARENA_THEMES[selectedArena] || ARENA_THEMES.canyon;
+      gameState.water.forEach(hz => {
+        const d = Math.hypot(f.x - hz.x, f.y - hz.y);
+        if (d < hz.r) {
+          if (theme.hazardType === 'lava') {
+            f.hp -= 420 * dt;
+            f.hitFlash = 0.12;
+            if (f.hp <= 0) handleKnockout(f, null);
+          } else if (theme.hazardType === 'ice') {
+            f.speedBoostTimer = Math.max(f.speedBoostTimer, 0.25);
+          } else if (theme.hazardType === 'water' && d > 1) {
+            // Gently push out of deep water pond
+            f.x += ((f.x - hz.x) / d) * (hz.r - d);
+            f.y += ((f.y - hz.y) / d) * (hz.r - d);
+          }
+        }
+      });
+
+      if (gameState.jumpPads) {
+        gameState.jumpPads.forEach(jp => {
+          if (Math.hypot(f.x - jp.x, f.y - jp.y) < 34) {
+            playSfx('super');
+            f.x = Math.max(80, Math.min(WORLD_W - 80, f.x + jp.vx * 0.75));
+            f.y = Math.max(80, Math.min(WORLD_H - 80, f.y + jp.vy * 0.75));
+            f.tx = f.x; f.ty = f.y;
+            f.speedBoostTimer = 2.0;
+          }
+        });
       }
 
       // Poison damage
@@ -2228,6 +2476,7 @@ function handleKnockout(victim, attacker) {
 }
 
 function updateBotAI(bot, dt) {
+  const diffCfg = BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.normal;
   bot.botTargetTimer -= dt;
   const cx = WORLD_W / 2, cy = WORLD_H / 2;
   const distCenter = Math.hypot(bot.x - cx, bot.y - cy);
@@ -2235,9 +2484,9 @@ function updateBotAI(bot, dt) {
   if (gameState.mode === 'showdown' && distCenter > gameState.poisonRadius - 110) {
     bot.botMoveAngle = Math.atan2(cy - bot.y, cx - bot.x);
   } else if (bot.botTargetTimer <= 0) {
-    bot.botTargetTimer = 0.55 + Math.random() * 0.6;
+    bot.botTargetTimer = botDifficulty === 'insane' ? 0.28 : (botDifficulty === 'hard' ? 0.38 : 0.65);
     let nearestPickup = null;
-    let pDist = 380;
+    let pDist = 420;
     gameState.pickups.forEach(p => {
       const d = Math.hypot(p.x - bot.x, p.y - bot.y);
       if (d < pDist) { pDist = d; nearestPickup = p; }
@@ -2246,15 +2495,35 @@ function updateBotAI(bot, dt) {
       bot.botMoveAngle = Math.atan2(nearestPickup.y - bot.y, nearestPickup.x - bot.x);
     } else {
       const aimA = getAutoAimAngle(bot);
-      bot.botMoveAngle = aimA + (Math.random() - 0.5) * 1.4;
+      // On hard/insane, retreat if low HP, otherwise tactical strafe
+      if ((botDifficulty === 'hard' || botDifficulty === 'insane') && bot.hp < bot.maxHp * 0.35) {
+        bot.botMoveAngle = aimA + Math.PI + (Math.random() - 0.5) * 0.5;
+      } else {
+        bot.botMoveAngle = aimA + (Math.random() - 0.5) * 1.35;
+      }
     }
   }
 
-  if (bot.ammo >= 1.5 && Math.random() < 0.07) {
-    const aimA = getAutoAimAngle(bot);
-    fireWeapon(bot, aimA + (Math.random() - 0.5) * 0.14);
+  if (bot.ammo >= 1.2 && Math.random() < diffCfg.fireChance) {
+    // Predictive lead aiming for Hard / Insane bots
+    let bestTarget = null;
+    let bestD = 9999;
+    gameState.fighters.forEach(other => {
+      if (other.id !== bot.id && !other.dead) {
+        const d = Math.hypot(other.x - bot.x, other.y - bot.y);
+        if (d < bestD) { bestD = d; bestTarget = other; }
+      }
+    });
+    let aimA = getAutoAimAngle(bot);
+    if (bestTarget && bestD < 580 && diffCfg.leadAim > 0) {
+      const tFlight = bestD / (bot.hero.projSpeed || 650);
+      const predX = bestTarget.x + (bestTarget.vx || 0) * tFlight * diffCfg.leadAim;
+      const predY = bestTarget.y + (bestTarget.vy || 0) * tFlight * diffCfg.leadAim;
+      aimA = Math.atan2(predY - bot.y, predX - bot.x);
+    }
+    fireWeapon(bot, aimA + (Math.random() - 0.5) * diffCfg.scatter);
   }
-  if (bot.superCharge >= 100 && Math.random() < 0.06) {
+  if (bot.superCharge >= 100 && Math.random() < diffCfg.superChance) {
     executeSuper(bot);
   }
 }
@@ -2336,11 +2605,13 @@ function renderGame() {
   ctx.save();
   ctx.translate(-camX, -camY);
 
+  const theme = ARENA_THEMES[selectedArena] || ARENA_THEMES.canyon;
+
   // 1. Arena Floor
-  ctx.fillStyle = '#dfab68';
+  ctx.fillStyle = theme.floorA;
   ctx.fillRect(0, 0, WORLD_W, WORLD_H);
 
-  ctx.fillStyle = '#d49d58';
+  ctx.fillStyle = theme.floorB;
   const tile = 80;
   for (let x = 0; x < WORLD_W; x += tile) {
     for (let y = 0; y < WORLD_H; y += tile) {
@@ -2355,10 +2626,10 @@ function renderGame() {
   ctx.translate(WORLD_W / 2, WORLD_H / 2);
   ctx.beginPath();
   ctx.arc(0, 0, 130, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(180, 115, 45, 0.28)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
   ctx.fill();
   ctx.lineWidth = 5;
-  ctx.strokeStyle = 'rgba(255, 220, 130, 0.45)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(0, 0, 85, 0, Math.PI * 2);
@@ -2366,8 +2637,7 @@ function renderGame() {
   ctx.font = 'bold 54px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(255, 215, 0, 0.28)';
-  ctx.fillText('⭐', 0, 4);
+  ctx.fillText(theme.centerIcon, 0, 4);
   ctx.restore();
 
   // Decorative pebbles
@@ -2376,7 +2646,7 @@ function renderGame() {
     [260, 900], [420, 1340], [1180, 1320], [1360, 880],
     [680, 520], [920, 1080], [520, 920], [1080, 680]
   ];
-  ctx.fillStyle = '#b8813d';
+  ctx.fillStyle = theme.decoColor;
   decoSpots.forEach(([dx, dy]) => {
     ctx.beginPath();
     ctx.ellipse(dx, dy, 12, 7, 0.3, 0, Math.PI * 2);
@@ -2386,30 +2656,60 @@ function renderGame() {
     ctx.fill();
   });
 
-  ctx.strokeStyle = '#3d2610';
+  ctx.strokeStyle = theme.border;
   ctx.lineWidth = 16;
   ctx.strokeRect(0, 0, WORLD_W, WORLD_H);
 
-  // 2. Water Ponds
+  // 2. Water / Lava / Ice Zones
   gameState.water.forEach(wt => {
+    ctx.save();
     ctx.beginPath();
     ctx.arc(wt.x, wt.y, wt.r, 0, Math.PI * 2);
-    ctx.fillStyle = '#29b6f6';
+    ctx.fillStyle = theme.hazardFill;
     ctx.fill();
     ctx.lineWidth = 5;
-    ctx.strokeStyle = '#fff59d';
+    ctx.strokeStyle = theme.hazardStroke;
     ctx.stroke();
+    ctx.font = 'bold 20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if (theme.hazardType === 'lava') {
+      ctx.fillText('🔥', wt.x, wt.y);
+    } else if (theme.hazardType === 'ice') {
+      ctx.fillText('❄️⚡', wt.x, wt.y);
+    }
+    ctx.restore();
   });
+
+  // 2b. Jump Pads (on Beach Arena)
+  if (gameState.jumpPads) {
+    gameState.jumpPads.forEach(jp => {
+      ctx.save();
+      ctx.translate(jp.x, jp.y);
+      ctx.beginPath();
+      ctx.arc(0, 0, 28, 0, Math.PI * 2);
+      ctx.fillStyle = '#00e5ff';
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#111';
+      ctx.stroke();
+      ctx.font = '22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🌀', 0, 1);
+      ctx.restore();
+    });
+  }
 
   // 3. Walls
   gameState.walls.forEach(w => {
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.fillRect(w.x + 6, w.y + 10, w.w, w.h);
-    ctx.fillStyle = '#6d4c41';
+    ctx.fillStyle = theme.wallBase;
     ctx.fillRect(w.x, w.y, w.w, w.h);
-    ctx.fillStyle = '#a1887f';
+    ctx.fillStyle = theme.wallTop;
     ctx.fillRect(w.x + 4, w.y + 4, w.w - 8, w.h - 14);
-    ctx.strokeStyle = '#261710';
+    ctx.strokeStyle = theme.wallOut;
     ctx.lineWidth = 4;
     ctx.strokeRect(w.x, w.y, w.w, w.h);
   });
@@ -2757,14 +3057,14 @@ function renderGame() {
     if (distMe < b.r + 25) ctx.globalAlpha = 0.45;
     ctx.beginPath();
     ctx.arc(0, 0, b.r, 0, Math.PI * 2);
-    ctx.fillStyle = '#2ecc71';
+    ctx.fillStyle = theme.bushMain;
     ctx.fill();
     ctx.lineWidth = 3.5;
-    ctx.strokeStyle = '#145a32';
+    ctx.strokeStyle = theme.bushOut;
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(-6, -6, b.r * 0.55, 0, Math.PI * 2);
-    ctx.fillStyle = '#58d68d';
+    ctx.fillStyle = theme.bushInner;
     ctx.fill();
     ctx.restore();
   });
