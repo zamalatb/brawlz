@@ -385,13 +385,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
   .action-buttons {
     position: absolute;
-    bottom: 24px;
-    right: 20px;
+    bottom: 145px;
+    right: 22px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    z-index: 22;
+    gap: 14px;
+    z-index: 35;
+    pointer-events: auto;
+    touch-action: none;
   }
   .super-btn {
     width: 72px;
@@ -484,8 +486,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
 <!-- ==================== LOBBY SCREEN ==================== -->
 <div id="lobby-screen" class="screen active">
-  <div class="brawl-title">⚡ FAMILY BRAWL v5.0 ⚡</div>
-  <div class="brawl-subtitle">Версия 5.0 • 👾 Кооп-Выживание против Монстров + Стрельба в 3 ряда + Бронещиты!</div>
+  <div class="brawl-title">⚡ FAMILY BRAWL v5.2 ⚡</div>
+  <div class="brawl-subtitle">Версия 5.2 • Щит макс 3 удара • Коллизии Монстров со Стенами • Усиленные Боссы!</div>
 
   <!-- STEP 1: CHOOSE HERO -->
   <div class="lobby-card">
@@ -538,12 +540,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
     <!-- BOT DIFFICULTY SELECTOR -->
     <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom: 8px;">
-      <span style="font-size:11px; font-weight:900; color:var(--gold); text-transform:uppercase;">🤖 Сложность ботов:</span>
+      <span style="font-size:11px; font-weight:900; color:var(--gold); text-transform:uppercase;">🔥 Сложность (Монстры и Боты):</span>
       <div style="display:flex; gap:6px; flex:1; min-width:260px;" id="diff-selector">
-        <div class="room-chip active" data-diff="easy" onclick="selectBotDiff('easy')">🐣 Лёгкие</div>
-        <div class="room-chip" data-diff="normal" onclick="selectBotDiff('normal')">🤖 Средние</div>
-        <div class="room-chip" data-diff="hard" onclick="selectBotDiff('hard')">🔥 Сложные</div>
-        <div class="room-chip" data-diff="insane" onclick="selectBotDiff('insane')">💀 Киберкотлеты</div>
+        <div class="room-chip" data-diff="easy" onclick="selectBotDiff('easy')">🐣 Лёгкая</div>
+        <div class="room-chip active" data-diff="normal" onclick="selectBotDiff('normal')">🤖 Средняя</div>
+        <div class="room-chip" data-diff="hard" onclick="selectBotDiff('hard')">🔥 Сложная</div>
+        <div class="room-chip" data-diff="insane" onclick="selectBotDiff('insane')">💀 Кошмар</div>
       </div>
     </div>
 
@@ -598,8 +600,8 @@ window.addEventListener("DOMContentLoaded", () => {
       ⏱️ <span id="hud-timer">02:00</span>
     </div>
     <div style="display:flex; gap:6px;">
-      <button class="hud-pill" style="cursor:pointer;" onclick="toggleSound()" id="sound-btn">🔊</button>
-      <button class="hud-pill" style="cursor:pointer; background:rgba(255,71,87,0.85);" onclick="leaveMatch()">✖ Выход</button>
+      <button class="hud-pill" style="cursor:pointer;" id="sound-btn">🔊</button>
+      <button class="hud-pill" style="cursor:pointer; background:rgba(255,71,87,0.85);" id="exit-btn">✖ Выход</button>
     </div>
   </div>
 
@@ -609,8 +611,8 @@ window.addEventListener("DOMContentLoaded", () => {
   <div id="zone-right" class="touch-zone"></div>
 
   <div class="action-buttons">
-    <div class="emote-btn" onclick="triggerEmote()" title="Эмоция">😎</div>
-    <div class="super-btn" id="super-btn" onclick="triggerSuper()">
+    <div class="emote-btn" id="emote-btn" title="Эмоция">😎</div>
+    <div class="super-btn" id="super-btn">
       <span style="font-size:20px;">⚡</span>
       <span id="super-pct">0%</span>
     </div>
@@ -843,29 +845,31 @@ const myPlayerId = 'p_' + Math.random().toString(36).substring(2, 8);
 let selectedHeroId = HEROES[Math.floor(Math.random() * 4)].id;
 let selectedMode = 'survival';
 let selectedArena = 'canyon';
-let botDifficulty = 'easy';
+let botDifficulty = 'normal';
 let fillBotsEnabled = true;
 
 const BOT_DIFF_CONFIG = {
-  easy:   { label: '🐣 Лёгкие',       speedMult: 0.65, dmgMult: 0.22, hpMult: 0.65, shootCooldown: 2.30, aggroRange: 300, scatter: 0.55, canSuper: false, leadAim: 0.0 },
-  normal: { label: '🤖 Средние',      speedMult: 0.80, dmgMult: 0.45, hpMult: 0.85, shootCooldown: 1.50, aggroRange: 390, scatter: 0.30, canSuper: true,  leadAim: 0.25 },
-  hard:   { label: '🔥 Сложные',      speedMult: 0.95, dmgMult: 0.72, hpMult: 1.00, shootCooldown: 1.05, aggroRange: 470, scatter: 0.14, canSuper: true,  leadAim: 0.65 },
-  insane: { label: '💀 Киберкотлеты', speedMult: 1.06, dmgMult: 1.00, hpMult: 1.10, shootCooldown: 0.72, aggroRange: 540, scatter: 0.05, canSuper: true,  leadAim: 0.95 }
+  easy:   { label: '🐣 Лёгкая',  speedMult: 0.68, dmgMult: 0.28, hpMult: 0.70, shootCooldown: 2.10, aggroRange: 320, scatter: 0.48, canSuper: false, leadAim: 0.0,  mDmg: 0.90, mHp: 0.85, mSpd: 0.88 },
+  normal: { label: '🤖 Средняя', speedMult: 0.82, dmgMult: 0.48, hpMult: 0.88, shootCooldown: 1.40, aggroRange: 410, scatter: 0.26, canSuper: true,  leadAim: 0.30, mDmg: 1.30, mHp: 1.15, mSpd: 1.02 },
+  hard:   { label: '🔥 Сложная', speedMult: 0.96, dmgMult: 0.75, hpMult: 1.00, shootCooldown: 1.00, aggroRange: 480, scatter: 0.12, canSuper: true,  leadAim: 0.65, mDmg: 1.75, mHp: 1.50, mSpd: 1.15 },
+  insane: { label: '💀 Кошмар',  speedMult: 1.08, dmgMult: 1.00, hpMult: 1.15, shootCooldown: 0.70, aggroRange: 550, scatter: 0.04, canSuper: true,  leadAim: 0.95, mDmg: 2.35, mHp: 2.00, mSpd: 1.28 }
 };
 
 
+const MAX_SHIELD_HITS = 3; // Strict maximum of 3 hits per shield!
+
 const MONSTER_TYPES = {
-  goblin:  { name: 'Слайм-Гоблин', emoji: '👾', color: '#2ecc71', radius: 22, hp: 1100, speed: 155, damage: 220, ranged: false, score: 1 },
-  bat:     { name: 'Кибер-Мышь',   emoji: '🦇', color: '#9b59b6', radius: 19, hp: 750,  speed: 215, damage: 170, ranged: false, score: 1 },
-  shooter: { name: 'Робо-Стрелок', emoji: '🤖', color: '#e74c3c', radius: 25, hp: 1550, speed: 120, damage: 240, ranged: true,  score: 2 },
-  golem:   { name: 'Каменный Голем', emoji: '👹', color: '#e67e22', radius: 32, hp: 3400, speed: 95,  damage: 360, ranged: false, score: 3 },
-  boss:    { name: 'МЕГА-БОСС',    emoji: '🐉', color: '#ff0055', radius: 46, hp: 9500, speed: 110, damage: 480, ranged: true,  score: 10 }
+  goblin:  { name: 'Слайм-Гоблин',   emoji: '👾', color: '#2ecc71', radius: 22, hp: 1450,  speed: 175, damage: 460, ranged: false, score: 1 },
+  bat:     { name: 'Кибер-Мышь',     emoji: '🦇', color: '#9b59b6', radius: 19, hp: 980,   speed: 235, damage: 380, ranged: false, score: 1 },
+  shooter: { name: 'Робо-Стрелок',   emoji: '🤖', color: '#e74c3c', radius: 25, hp: 2100,  speed: 135, damage: 520, ranged: true,  score: 2 },
+  golem:   { name: 'Каменный Голем', emoji: '👹', color: '#e67e22', radius: 32, hp: 5200,  speed: 112, damage: 780, ranged: false, score: 3 },
+  boss:    { name: 'МЕГА-БОСС',      emoji: '🐉', color: '#ff0055', radius: 46, hp: 24000, speed: 132, damage: 920, ranged: true,  score: 10 }
 };
 
 const UPGRADE_TYPES = {
   multishot:  { emoji: '🔱', label: 'СТРЕЛЬБА В 3 РЯДА!', color: '#00e5ff' },
   firerate:   { emoji: '🔥', label: '+СКОРОСТРЕЛЬНОСТЬ!', color: '#ffcc00' },
-  hitshield:  { emoji: '🛡️', label: 'ЩИТ НА +3 УДАРА!',   color: '#38ef7d' },
+  hitshield:  { emoji: '🛡️', label: 'ЩИТ (МАКС 3 УДАРА)', color: '#38ef7d' },
   pierce:     { emoji: '💥', label: 'ПРОБИВНЫЕ ПУЛИ!',    color: '#ff41af' },
   speed_heal: { emoji: '❤️', label: '+ХП И СКОРОСТЬ!',    color: '#ff5252' }
 };
@@ -1400,7 +1404,7 @@ function createFighterObject(id, heroId, isBot, spawnIndex, mode) {
     dead: false,
     respawnTimer: 0,
     shieldTimer: 0,
-    shieldHits: mode === 'survival' ? 2 : 0, // Multi-hit shield charges!
+    shieldHits: mode === 'survival' ? 1 : 0, // Multi-hit shield charges!
     multiShotLevel: 0, // 0=normal, 1=3 rows, 2=5 rows, 3=7 rows
     fireRateLevel: 0,  // each level boosts reload speed +25%
     pierceLevel: 0,    // projectiles pierce through enemies
@@ -1518,7 +1522,7 @@ function handleNetMessage(msg) {
     f.kills = msg.k || 0;
     f.dead = !!msg.d;
     f.shieldTimer = msg.sh ? 0.4 : 0;
-    if (msg.shHits !== undefined) f.shieldHits = msg.shHits;
+    if (msg.shHits !== undefined) f.shieldHits = Math.min(MAX_SHIELD_HITS, Math.max(0, msg.shHits));
     if (msg.msLvl !== undefined) f.multiShotLevel = msg.msLvl;
     if (msg.frLvl !== undefined) f.fireRateLevel = msg.frLvl;
     if (msg.prLvl !== undefined) f.pierceLevel = msg.prLvl;
@@ -1616,6 +1620,8 @@ function handleNetMessage(msg) {
     } else if (msg.act === 'pickup_taken') {
       const pIdx = gameState.pickups.findIndex(p => p.id === msg.pickupId || (Math.hypot(p.x - msg.x, p.y - msg.y) < 30));
       if (pIdx !== -1) gameState.pickups.splice(pIdx, 1);
+      } else if (msg.act === 'monster_shoot') {
+      spawnMonsterProjectilesLocal(msg.mId, msg.x, msg.y, msg.angle, msg.count, msg.dmg, msg.isBoss);
     } else if (msg.act === 'hit_monster') {
       const m = gameState.monsters.find(x => x.id === msg.monsterId);
       if (m) damageMonster(m, msg.dmg, msg.actorId, false);
@@ -1840,7 +1846,7 @@ function startMatchLocal(mode, fillBots) {
     gameState.fighters.forEach((f, idx) => {
       const sp = coopSpawns[idx % coopSpawns.length];
       f.x = sp.x; f.y = sp.y; f.tx = sp.x; f.ty = sp.y;
-      f.shieldHits = 3; // Everyone starts Survival with a 3-hit energy shield!
+      f.shieldHits = 1; // Start with 1 shield charge (max 3)!
     });
     startSurvivalWave(1);
   }
@@ -1866,7 +1872,7 @@ function startSurvivalWave(waveNum) {
     if (f.dead) {
       f.dead = false;
       f.hp = Math.round(f.maxHp * 0.75);
-      f.shieldHits = Math.max(f.shieldHits, 2);
+      f.shieldHits = Math.min(MAX_SHIELD_HITS, Math.max(f.shieldHits || 0, 1));
       f.x = WORLD_W / 2 + (Math.random() - 0.5) * 160;
       f.y = WORLD_H / 2 + (Math.random() - 0.5) * 160;
       f.tx = f.x; f.ty = f.y;
@@ -1876,9 +1882,8 @@ function startSurvivalWave(waveNum) {
   });
 }
 
-function spawnMonsterFromEdge(waveNum) {
-  const diffCfg = BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.easy;
-  // Pick a random edge around the arena perimeter
+function spawnMonsterFromEdge(waveNum, forceType) {
+  const diffCfg = BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.normal;
   const side = Math.floor(Math.random() * 4);
   let mx = 100, my = 100;
   if (side === 0) { mx = 90 + Math.random() * (WORLD_W - 180); my = 90; }
@@ -1886,21 +1891,29 @@ function spawnMonsterFromEdge(waveNum) {
   else if (side === 2) { mx = 90; my = 90 + Math.random() * (WORLD_H - 180); }
   else { mx = WORLD_W - 90; my = 90 + Math.random() * (WORLD_H - 180); }
 
-  let typeKey = 'goblin';
-  const r = Math.random();
-  if (waveNum % 3 === 0 && gameState.waveMonstersToSpawn === 1) {
-    typeKey = 'boss';
-  } else if (waveNum >= 4 && r < 0.22) {
-    typeKey = 'golem';
-  } else if (waveNum >= 2 && r < 0.48) {
-    typeKey = 'shooter';
-  } else if (r < 0.72) {
-    typeKey = 'bat';
+  const safePos = getSafeFloorPosition(mx, my);
+  mx = safePos.x; my = safePos.y;
+
+  let typeKey = forceType || 'goblin';
+  if (!forceType) {
+    const r = Math.random();
+    if (gameState.waveMonstersToSpawn === 0) {
+      // Every wave ends with a Boss! (Mega-Boss on Wave 2+, Golem Mini-Boss on Wave 1)
+      typeKey = waveNum >= 2 ? 'boss' : 'golem';
+    } else if (waveNum >= 3 && r < 0.25) {
+      typeKey = 'golem';
+    } else if (waveNum >= 1 && r < 0.52) {
+      typeKey = 'shooter';
+    } else if (r < 0.76) {
+      typeKey = 'bat';
+    }
   }
 
   const mDef = MONSTER_TYPES[typeKey];
-  const waveScale = 1 + (waveNum - 1) * 0.15;
-  const maxHp = Math.round(mDef.hp * waveScale * diffCfg.hpMult);
+  const waveScale = 1 + (waveNum - 1) * 0.25;
+  const humanCount = Math.max(1, gameState.fighters.filter(f => !f.isBot).length);
+  const partyScale = 1 + (humanCount - 1) * 0.25;
+  const maxHp = Math.round(mDef.hp * waveScale * (diffCfg.mHp || 1.15) * (typeKey === 'boss' ? partyScale : 1));
 
   gameState.monsters.push({
     id: 'm_' + Date.now() + '_' + Math.floor(Math.random() * 9999),
@@ -1914,7 +1927,9 @@ function spawnMonsterFromEdge(waveNum) {
     vy: 0,
     hp: maxHp,
     maxHp: maxHp,
-    attackCooldown: 1.0 + Math.random(),
+    attackCooldown: 0.9 + Math.random() * 0.6,
+    dashCooldown: 4.5,
+    enraged: false,
     hitFlash: 0
   });
 }
@@ -1956,11 +1971,39 @@ window.addEventListener('mouseup', () => { mouseAim.down = false; });
 
 const zoneLeft = document.getElementById('zone-left');
 const zoneRight = document.getElementById('zone-right');
+let rightHoldFireTimer = 0;
+let rightFiredWhileHeld = false;
+
+// Helper to bind instant multi-touch safe button triggers (works while walking AND shooting simultaneously!)
+function bindInstantButton(elId, handler) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  let lastTrigger = 0;
+  const run = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const now = performance.now();
+    if (now - lastTrigger < 120) return; // debounce duplicate touchstart+click
+    lastTrigger = now;
+    initAudio();
+    handler();
+  };
+  el.addEventListener('touchstart', run, { passive: false });
+  el.addEventListener('mousedown', run);
+  el.addEventListener('click', run);
+}
+
+bindInstantButton('super-btn', () => triggerSuper());
+bindInstantButton('emote-btn', () => triggerEmote());
+bindInstantButton('sound-btn', () => toggleSound());
+bindInstantButton('exit-btn',  () => leaveMatch());
 
 zoneLeft.addEventListener('touchstart', e => {
   e.preventDefault();
   initAudio();
+  if (leftJoy.active) return; // Do not overwrite an already active left thumb!
   const t = e.changedTouches[0];
+  if (!t) return;
   leftJoy.active = true;
   leftJoy.id = t.identifier;
   leftJoy.startX = t.clientX;
@@ -1973,7 +2016,7 @@ zoneLeft.addEventListener('touchstart', e => {
 zoneLeft.addEventListener('touchmove', e => {
   e.preventDefault();
   for (const t of e.changedTouches) {
-    if (t.identifier === leftJoy.id) {
+    if (leftJoy.active && t.identifier === leftJoy.id) {
       leftJoy.curX = t.clientX;
       leftJoy.curY = t.clientY;
       const rx = leftJoy.curX - leftJoy.startX;
@@ -1989,18 +2032,22 @@ zoneLeft.addEventListener('touchmove', e => {
 
 function endLeftTouch(e) {
   for (const t of e.changedTouches) {
-    if (t.identifier === leftJoy.id) {
-      leftJoy.active = false; leftJoy.dx = 0; leftJoy.dy = 0;
+    if (leftJoy.active && t.identifier === leftJoy.id) {
+      leftJoy.active = false;
+      leftJoy.id = null;
+      leftJoy.dx = 0; leftJoy.dy = 0;
     }
   }
 }
-zoneLeft.addEventListener('touchend', endLeftTouch);
-zoneLeft.addEventListener('touchcancel', endLeftTouch);
+zoneLeft.addEventListener('touchend', endLeftTouch, { passive: false });
+zoneLeft.addEventListener('touchcancel', endLeftTouch, { passive: false });
 
 zoneRight.addEventListener('touchstart', e => {
   e.preventDefault();
   initAudio();
+  if (rightJoy.active) return; // Do not overwrite an already active right thumb!
   const t = e.changedTouches[0];
+  if (!t) return;
   rightJoy.active = true;
   rightJoy.id = t.identifier;
   rightJoy.startX = t.clientX;
@@ -2009,12 +2056,14 @@ zoneRight.addEventListener('touchstart', e => {
   rightJoy.curY = t.clientY;
   rightJoy.dx = 0; rightJoy.dy = 0;
   rightJoy.moved = false;
+  rightHoldFireTimer = 0.18;
+  rightFiredWhileHeld = false;
 }, { passive: false });
 
 zoneRight.addEventListener('touchmove', e => {
   e.preventDefault();
   for (const t of e.changedTouches) {
-    if (t.identifier === rightJoy.id) {
+    if (rightJoy.active && t.identifier === rightJoy.id) {
       rightJoy.curX = t.clientX;
       rightJoy.curY = t.clientY;
       const rx = rightJoy.curX - rightJoy.startX;
@@ -2031,18 +2080,21 @@ zoneRight.addEventListener('touchmove', e => {
 
 function endRightTouch(e) {
   for (const t of e.changedTouches) {
-    if (t.identifier === rightJoy.id) {
+    if (rightJoy.active && t.identifier === rightJoy.id) {
       const me = getMyFighter();
-      if (me && !me.dead) {
+      if (me && !me.dead && !rightFiredWhileHeld) {
         const angle = rightJoy.moved ? Math.atan2(rightJoy.dy, rightJoy.dx) : getAutoAimAngle(me);
         fireWeapon(me, angle);
       }
-      rightJoy.active = false; rightJoy.dx = 0; rightJoy.dy = 0;
+      rightJoy.active = false;
+      rightJoy.id = null;
+      rightJoy.dx = 0; rightJoy.dy = 0;
+      rightFiredWhileHeld = false;
     }
   }
 }
-zoneRight.addEventListener('touchend', endRightTouch);
-zoneRight.addEventListener('touchcancel', endRightTouch);
+zoneRight.addEventListener('touchend', endRightTouch, { passive: false });
+zoneRight.addEventListener('touchcancel', endRightTouch, { passive: false });
 
 function getMyFighter() {
   return gameState.fighters.find(f => f.id === myPlayerId) || gameState.fighters[0];
@@ -2263,23 +2315,63 @@ let lastFrameTime = performance.now();
 let heroTickAccum = 0;
 let worldTickAccum = 0;
 
-function moveWithWallCollisions(f, dt) {
-  let nx = f.x + f.vx * dt;
-  let ny = f.y + f.vy * dt;
-  const rad = 28;
-  gameState.walls.forEach(w => {
-    const cx = Math.max(w.x, Math.min(nx, w.x + w.w));
-    const cy = Math.max(w.y, Math.min(ny, w.y + w.h));
-    const dx = nx - cx;
-    const dy = ny - cy;
-    const dist = Math.hypot(dx, dy);
-    if (dist < rad && dist > 0.001) {
-      nx += (dx / dist) * (rad - dist);
-      ny += (dy / dist) * (rad - dist);
+function pushOutOfObstacles(nx, ny, rad, checkWater) {
+  // Run 2 passes so corner collisions resolve cleanly without ever clipping into walls
+  for (let pass = 0; pass < 2; pass++) {
+    gameState.walls.forEach(w => {
+      const cx = Math.max(w.x, Math.min(nx, w.x + w.w));
+      const cy = Math.max(w.y, Math.min(ny, w.y + w.h));
+      let dx = nx - cx;
+      let dy = ny - cy;
+      let dist = Math.hypot(dx, dy);
+      if (dist < rad) {
+        if (dist < 0.01) {
+          // Inside wall box! Push out to nearest of the 4 edges
+          const dLeft = Math.abs(nx - w.x);
+          const dRight = Math.abs((w.x + w.w) - nx);
+          const dTop = Math.abs(ny - w.y);
+          const dBottom = Math.abs((w.y + w.h) - ny);
+          const minD = Math.min(dLeft, dRight, dTop, dBottom);
+          if (minD === dLeft) nx = w.x - rad;
+          else if (minD === dRight) nx = w.x + w.w + rad;
+          else if (minD === dTop) ny = w.y - rad;
+          else ny = w.y + w.h + rad;
+        } else {
+          nx += (dx / dist) * (rad - dist);
+          ny += (dy / dist) * (rad - dist);
+        }
+      }
+    });
+
+    if (checkWater) {
+      const theme = ARENA_THEMES[selectedArena] || ARENA_THEMES.canyon;
+      if (theme.hazardType === 'water') {
+        gameState.water.forEach(wt => {
+          const dx = nx - wt.x;
+          const dy = ny - wt.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          if (dist < wt.r + rad * 0.5) {
+            nx = wt.x + (dx / dist) * (wt.r + rad * 0.5);
+            ny = wt.y + (dy / dist) * (wt.r + rad * 0.5);
+          }
+        });
+      }
     }
-  });
-  f.x = Math.max(50, Math.min(WORLD_W - 50, nx));
-  f.y = Math.max(50, Math.min(WORLD_H - 50, ny));
+  }
+  nx = Math.max(55, Math.min(WORLD_W - 55, nx));
+  ny = Math.max(55, Math.min(WORLD_H - 55, ny));
+  return { x: nx, y: ny };
+}
+
+function getSafeFloorPosition(x, y) {
+  return pushOutOfObstacles(x, y, 36, true);
+}
+
+function moveWithWallCollisions(f, dt) {
+  const rad = f.def ? f.def.radius : 28;
+  const pos = pushOutOfObstacles(f.x + f.vx * dt, f.y + f.vy * dt, rad, !!f.def);
+  f.x = pos.x;
+  f.y = pos.y;
 }
 
 function updateGame(dt) {
@@ -2311,11 +2403,23 @@ function updateGame(dt) {
       }
     }
 
-    if (mouseAim.down && !rightJoy.active) {
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
-      fireWeapon(me, Math.atan2(mouseAim.y - cy, mouseAim.x - cx));
-      mouseAim.down = false;
+    // Continuous firing while holding right attack joystick or mouse button!
+    if (rightJoy.active) {
+      rightHoldFireTimer -= dt;
+      if (rightHoldFireTimer <= 0 && me.ammo >= 1) {
+        const angle = rightJoy.moved ? Math.atan2(rightJoy.dy, rightJoy.dx) : getAutoAimAngle(me);
+        fireWeapon(me, angle);
+        rightFiredWhileHeld = true;
+        rightHoldFireTimer = 0.24;
+      }
+    } else if (mouseAim.down) {
+      rightHoldFireTimer -= dt;
+      if (rightHoldFireTimer <= 0 && me.ammo >= 1) {
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        fireWeapon(me, Math.atan2(mouseAim.y - cy, mouseAim.x - cx));
+        rightHoldFireTimer = 0.22;
+      }
     }
   }
 
@@ -2369,8 +2473,10 @@ function updateGame(dt) {
           f.ammo = Math.min(f.maxAmmo, f.ammo + 1);
         }
       }
-      if (f.hp < f.maxHp && f.hitFlash <= 0) {
-        f.hp = Math.min(f.maxHp, f.hp + 95 * dt);
+      if (f.lastDamagedTimer > 0) f.lastDamagedTimer -= dt;
+      if (f.hp < f.maxHp && (f.lastDamagedTimer || 0) <= 0) {
+        const healRate = gameState.mode === 'survival' ? 40 : 85;
+        f.hp = Math.min(f.maxHp, f.hp + healRate * dt);
       }
 
       if (f.isBot) {
@@ -2424,10 +2530,17 @@ function updateGame(dt) {
         }
       }
 
-      // Pickup & Upgrade collection
+      // Pickup & Upgrade collection (with magnetic pull so items near walls are always easy to grab!)
       for (let i = gameState.pickups.length - 1; i >= 0; i--) {
         const p = gameState.pickups[i];
-        if (Math.hypot(p.x - f.x, p.y - f.y) < 44) {
+        const safeP = getSafeFloorPosition(p.x, p.y);
+        p.x = safeP.x; p.y = safeP.y;
+        const pDist = Math.hypot(p.x - f.x, p.y - f.y);
+        if (pDist < 105 && pDist > 5) {
+          p.x += ((f.x - p.x) / pDist) * 240 * dt;
+          p.y += ((f.y - p.y) / pDist) * 240 * dt;
+        }
+        if (pDist < 48) {
           playSfx('powerup');
           if (p.type === 'multishot') {
             f.multiShotLevel = Math.min(3, (f.multiShotLevel || 0) + 1);
@@ -2440,8 +2553,8 @@ function updateGame(dt) {
             f.speechText = '🔥 СКОРОСТРЕЛЬНОСТЬ +' + (f.fireRateLevel * 28) + '%!';
             f.speechTimer = 2.0;
           } else if (p.type === 'hitshield') {
-            f.shieldHits = Math.min(9, (f.shieldHits || 0) + 3);
-            f.speechText = '🛡️ ЩИТ: ' + f.shieldHits + ' ЗАРЯДОВ!';
+            f.shieldHits = Math.min(MAX_SHIELD_HITS, (f.shieldHits || 0) + 2);
+            f.speechText = '🛡️ ЩИТ: ' + f.shieldHits + '/3 УДАРОВ!';
             f.speechTimer = 2.0;
           } else if (p.type === 'pierce') {
             f.pierceLevel = Math.min(4, (f.pierceLevel || 0) + 1);
@@ -2753,12 +2866,36 @@ function damageMonster(m, dmg, attackerId, broadcastNet) {
         for (let d = 0; d < dropCount; d++) {
           const uType = upgKeys[Math.floor(Math.random() * upgKeys.length)];
           const dropId = 'up_' + Date.now() + '_' + Math.floor(Math.random() * 99999);
-          const dx = m.x + (d - (dropCount - 1) / 2) * 38;
-          const dy = m.y;
-          gameState.pickups.push({ id: dropId, x: dx, y: dy, type: uType });
+          const rawX = m.x + (d - (dropCount - 1) / 2) * 42;
+          const rawY = m.y;
+          const safeDrop = getSafeFloorPosition(rawX, rawY);
+          gameState.pickups.push({ id: dropId, x: safeDrop.x, y: safeDrop.y, type: uType });
         }
       }
     }
+  }
+}
+
+
+function spawnMonsterProjectilesLocal(mId, x, y, a, count, dmg, isBoss) {
+  for (let i = 0; i < count; i++) {
+    const sa = count >= 8
+      ? a + (Math.PI * 2 * i) / count
+      : a + (i - (count - 1) / 2) * 0.26;
+    const pSpd = isBoss ? 510 : 460;
+    gameState.projectiles.push({
+      ownerId: mId,
+      isMonsterProj: true,
+      x: x, y: y,
+      vx: Math.cos(sa) * pSpd,
+      vy: Math.sin(sa) * pSpd,
+      damage: dmg,
+      maxDist: isBoss ? 580 : 490,
+      traveled: 0,
+      color: isBoss ? '#ff0055' : '#ff3838',
+      type: 'monster_orb',
+      radius: isBoss ? 14 : 11
+    });
   }
 }
 
@@ -2815,43 +2952,61 @@ function updateSurvivalMonsters(dt, coordinator) {
     });
 
     if (target) {
-      const a = Math.atan2(target.y - m.y, target.x - m.x);
-      const spd = (m.def ? m.def.speed : 140) * diffCfg.speedMult;
-      const stopDist = (m.def && m.def.ranged) ? 280 : 28;
+      let a = Math.atan2(target.y - m.y, target.x - m.x);
+      const isBoss = (m.type === 'boss');
+      if (isBoss && !m.enraged && m.hp < m.maxHp * 0.55) {
+        m.enraged = true;
+        // Boss Enrage at 55% HP: summon 2 fast bats!
+        spawnMonsterFromEdge(gameState.wave, 'bat');
+        spawnMonsterFromEdge(gameState.wave, 'bat');
+      }
+
+      let spd = (m.def ? m.def.speed : 150) * (diffCfg.mSpd || 1.02) * (m.enraged ? 1.32 : 1.0);
+      const stopDist = (m.def && m.def.ranged && !isBoss) ? 260 : 30;
+
+      // Boss Dash every 4.5 seconds!
+      if (isBoss) {
+        m.dashCooldown = (m.dashCooldown || 4.0) - dt;
+        if (m.dashCooldown <= 0 && bestD > 120) {
+          m.dashCooldown = m.enraged ? 3.2 : 4.5;
+          spd *= 3.4;
+        }
+      }
 
       if (bestD > stopDist) {
+        const prevX = m.x, prevY = m.y;
         m.vx = Math.cos(a) * spd;
         m.vy = Math.sin(a) * spd;
-        m.x += m.vx * dt;
-        m.y += m.vy * dt;
+        moveWithWallCollisions(m, dt);
+        // If blocked by a wall, steer perpendicular to walk around the obstacle!
+        if (Math.hypot(m.x - prevX, m.y - prevY) < spd * dt * 0.35) {
+          const sideA = a + (m.id.charCodeAt(2) % 2 === 0 ? 1.35 : -1.35);
+          m.vx = Math.cos(sideA) * spd;
+          m.vy = Math.sin(sideA) * spd;
+          moveWithWallCollisions(m, dt);
+        }
       } else {
         m.vx = 0; m.vy = 0;
+        moveWithWallCollisions(m, 0);
       }
 
       // Melee bite or Ranged plasma shot
       if (m.attackCooldown <= 0) {
-        const scaledDmg = Math.round((m.def ? m.def.damage : 200) * diffCfg.dmgMult);
-        if (m.def && m.def.ranged && bestD < 480) {
-          m.attackCooldown = m.type === 'boss' ? 1.3 : 2.1;
-          const count = m.type === 'boss' ? 5 : 1;
-          for (let i = 0; i < count; i++) {
-            const sa = a + (i - (count - 1) / 2) * 0.28;
-            gameState.projectiles.push({
-              ownerId: m.id,
-              isMonsterProj: true,
-              x: m.x, y: m.y,
-              vx: Math.cos(sa) * 440,
-              vy: Math.sin(sa) * 440,
-              damage: scaledDmg,
-              maxDist: 480,
-              traveled: 0,
-              color: '#ff3838',
-              type: 'monster_orb',
-              radius: 11
-            });
-          }
-        } else if (bestD < (m.def ? m.def.radius : 24) + 34) {
-          m.attackCooldown = 1.1;
+        const waveDmgScale = 1 + (gameState.wave - 1) * 0.12;
+        const scaledDmg = Math.round((m.def ? m.def.damage : 420) * (diffCfg.mDmg || 1.30) * waveDmgScale);
+        if (m.def && m.def.ranged && bestD < 560) {
+          m.attackCooldown = isBoss ? (m.enraged ? 0.95 : 1.35) : 1.85;
+          const count = isBoss ? (m.enraged ? 8 : 5) : 1;
+          spawnMonsterProjectilesLocal(m.id, m.x, m.y, a, count, scaledDmg, isBoss);
+          sendNetMessage({
+            type: 'action',
+            act: 'monster_shoot',
+            mId: m.id, x: Math.round(m.x), y: Math.round(m.y),
+            angle: Number(a.toFixed(2)), count, dmg: scaledDmg, isBoss
+          });
+        }
+        if (bestD < (m.def ? m.def.radius : 24) + 36) {
+          m.attackCooldown = 0.95;
           applyDamageToFighter(target, scaledDmg, m.id, true);
         }
       }
@@ -2864,38 +3019,43 @@ function applyDamageToFighter(target, dmg, attackerId, broadcastNet) {
   if (gameState.mode === 'survival' && attackerId && !attackerId.startsWith('m_')) {
     return;
   }
-  if (target.shieldHits && target.shieldHits > 0) {
-    target.shieldHits -= 1;
-    target.hitFlash = 0.12;
-    spawnHitParticles(target.x, target.y, '#00e5ff', 7);
-    playSfx('powerup');
-    return;
-  }
-  const actualDmg = target.shieldTimer > 0 ? Math.round(dmg * 0.35) : dmg;
-  target.hitFlash = 0.18;
-  playSfx('hit');
 
-  const attacker = gameState.fighters.find(f => f.id === attackerId);
-  if (attacker && !attacker.dead) {
-    attacker.superCharge = Math.min(100, attacker.superCharge + (attacker.isBot ? 8 : 16));
-  }
-
+  // Always broadcast hit to network FIRST so remote human target deducts their own shieldHits / HP!
   if (broadcastNet) {
     sendNetMessage({
       type: 'action',
       act: 'hit_fighter',
       actorId: attackerId,
       targetId: target.id,
-      dmg: actualDmg
+      dmg: dmg
     });
   }
 
-  // Deduct HP if we own the target OR if we are Coordinator and target is a bot
+  const attacker = gameState.fighters.find(f => f.id === attackerId);
+  if (attacker && !attacker.dead) {
+    attacker.superCharge = Math.min(100, attacker.superCharge + (attacker.isBot ? 8 : 16));
+  }
+
+  // Only the authoritative owner of `target` (local player for themselves, or Coordinator for bots) mutates shieldHits & HP!
   if (target.id === myPlayerId || (target.isBot && isRoomCoordinator())) {
+    target.lastDamagedTimer = 3.5; // Pause passive regen for 3.5s after being hit!
+    if (target.shieldHits && target.shieldHits > 0) {
+      target.shieldHits = Math.max(0, Math.min(MAX_SHIELD_HITS, target.shieldHits - 1));
+      target.hitFlash = 0.15;
+      spawnHitParticles(target.x, target.y, '#00e5ff', 8);
+      playSfx('powerup');
+      return;
+    }
+    const actualDmg = target.shieldTimer > 0 ? Math.round(dmg * 0.45) : dmg;
     target.hp -= actualDmg;
+    target.hitFlash = 0.20;
+    playSfx('hit');
     if (target.hp <= 0) {
       handleKnockout(target, attacker);
     }
+  } else {
+    target.hitFlash = 0.18;
+    playSfx('hit');
   }
 }
 
@@ -3701,15 +3861,43 @@ function renderGame() {
   drawJoystick(leftJoy, '#00e5ff', 110, H - 105, '🕹️ ХОДЬБА');
   drawJoystick(rightJoy, '#ff4757', W - 185, H - 105, '🎯 АТАКА');
 
+  // Top Boss Health Bar when a Boss is on the arena!
+  const activeBoss = gameState.monsters.find(m => m.type === 'boss');
+  if (activeBoss) {
+    ctx.save();
+    const barW = Math.min(360, W * 0.65);
+    const barH = 18;
+    const bx = W / 2 - barW / 2;
+    const by = 52;
+    ctx.fillStyle = 'rgba(15, 18, 35, 0.9)';
+    ctx.strokeStyle = '#ff0055';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(bx - 4, by - 4, barW + 8, barH + 8, 10);
+    ctx.fill(); ctx.stroke();
+
+    const hpPct = Math.max(0, activeBoss.hp / activeBoss.maxHp);
+    ctx.fillStyle = activeBoss.enraged ? '#ff0055' : '#ff4757';
+    ctx.beginPath();
+    ctx.roundRect(bx, by, barW * hpPct, barH, 6);
+    ctx.fill();
+
+    ctx.font = '900 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(`🐉 МЕГА-БОСС ВОЛНЫ ${gameState.wave}: ${Math.max(0, Math.round(activeBoss.hp))} / ${activeBoss.maxHp} ХП`, W / 2, by + 13);
+    ctx.restore();
+  }
+
   if (gameState.waveBannerTimer > 0 && gameState.waveBannerText) {
     ctx.save();
-    ctx.font = '900 26px sans-serif';
+    ctx.font = '900 24px sans-serif';
     ctx.textAlign = 'center';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 6;
-    ctx.strokeText(gameState.waveBannerText, W / 2, 95);
+    ctx.strokeText(gameState.waveBannerText, W / 2, 102);
     ctx.fillStyle = '#ffee00';
-    ctx.fillText(gameState.waveBannerText, W / 2, 95);
+    ctx.fillText(gameState.waveBannerText, W / 2, 102);
     ctx.restore();
   }
 
