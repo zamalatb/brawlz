@@ -484,8 +484,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
 <!-- ==================== LOBBY SCREEN ==================== -->
 <div id="lobby-screen" class="screen active">
-  <div class="brawl-title">⚡ FAMILY BRAWL v4.0 ⚡</div>
-  <div class="brawl-subtitle">Версия 4.0 • 6 Героев (+Бабушка Лена 🎂) • Новый Баланс Ботов • 4 Арены</div>
+  <div class="brawl-title">⚡ FAMILY BRAWL v5.0 ⚡</div>
+  <div class="brawl-subtitle">Версия 5.0 • 👾 Кооп-Выживание против Монстров + Стрельба в 3 ряда + Бронещиты!</div>
 
   <!-- STEP 1: CHOOSE HERO -->
   <div class="lobby-card">
@@ -506,11 +506,14 @@ window.addEventListener("DOMContentLoaded", () => {
     </div>
 
     <div class="mode-selector">
-      <div class="mode-pill active" data-mode="showdown" onclick="selectMode('showdown')">
-        ☠️ <b>Столкновение (Бравл)</b> — Ящики силы + туман
+      <div class="mode-pill active" data-mode="survival" onclick="selectMode('survival')">
+        👾 <b>Кооп-Выживание (Волны)</b><br><span style="font-size:10px; color:#38ef7d;">Все вместе против монстров + Апгрейды!</span>
+      </div>
+      <div class="mode-pill" data-mode="showdown" onclick="selectMode('showdown')">
+        ☠️ <b>Столкновение (Бравл)</b><br><span style="font-size:10px; color:#9cb0ec;">Каждый сам за себя + туман</span>
       </div>
       <div class="mode-pill" data-mode="bounty" onclick="selectMode('bounty')">
-        ⭐ <b>Кубок Семьи (2 мин)</b> — Возрождение + битва за звёзды
+        ⭐ <b>Кубок Семьи (2 мин)</b><br><span style="font-size:10px; color:#9cb0ec;">Возрождение + битва за звёзды</span>
       </div>
     </div>
 
@@ -838,7 +841,7 @@ function toggleSound() {
 const myPlayerId = 'p_' + Math.random().toString(36).substring(2, 8);
 // Pick a random initial hero so 4 phones opening the page don't all default to the exact same hero
 let selectedHeroId = HEROES[Math.floor(Math.random() * 4)].id;
-let selectedMode = 'showdown';
+let selectedMode = 'survival';
 let selectedArena = 'canyon';
 let botDifficulty = 'easy';
 let fillBotsEnabled = true;
@@ -848,6 +851,23 @@ const BOT_DIFF_CONFIG = {
   normal: { label: '🤖 Средние',      speedMult: 0.80, dmgMult: 0.45, hpMult: 0.85, shootCooldown: 1.50, aggroRange: 390, scatter: 0.30, canSuper: true,  leadAim: 0.25 },
   hard:   { label: '🔥 Сложные',      speedMult: 0.95, dmgMult: 0.72, hpMult: 1.00, shootCooldown: 1.05, aggroRange: 470, scatter: 0.14, canSuper: true,  leadAim: 0.65 },
   insane: { label: '💀 Киберкотлеты', speedMult: 1.06, dmgMult: 1.00, hpMult: 1.10, shootCooldown: 0.72, aggroRange: 540, scatter: 0.05, canSuper: true,  leadAim: 0.95 }
+};
+
+
+const MONSTER_TYPES = {
+  goblin:  { name: 'Слайм-Гоблин', emoji: '👾', color: '#2ecc71', radius: 22, hp: 1100, speed: 155, damage: 220, ranged: false, score: 1 },
+  bat:     { name: 'Кибер-Мышь',   emoji: '🦇', color: '#9b59b6', radius: 19, hp: 750,  speed: 215, damage: 170, ranged: false, score: 1 },
+  shooter: { name: 'Робо-Стрелок', emoji: '🤖', color: '#e74c3c', radius: 25, hp: 1550, speed: 120, damage: 240, ranged: true,  score: 2 },
+  golem:   { name: 'Каменный Голем', emoji: '👹', color: '#e67e22', radius: 32, hp: 3400, speed: 95,  damage: 360, ranged: false, score: 3 },
+  boss:    { name: 'МЕГА-БОСС',    emoji: '🐉', color: '#ff0055', radius: 46, hp: 9500, speed: 110, damage: 480, ranged: true,  score: 10 }
+};
+
+const UPGRADE_TYPES = {
+  multishot:  { emoji: '🔱', label: 'СТРЕЛЬБА В 3 РЯДА!', color: '#00e5ff' },
+  firerate:   { emoji: '🔥', label: '+СКОРОСТРЕЛЬНОСТЬ!', color: '#ffcc00' },
+  hitshield:  { emoji: '🛡️', label: 'ЩИТ НА +3 УДАРА!',   color: '#38ef7d' },
+  pierce:     { emoji: '💥', label: 'ПРОБИВНЫЕ ПУЛИ!',    color: '#ff41af' },
+  speed_heal: { emoji: '❤️', label: '+ХП И СКОРОСТЬ!',    color: '#ff5252' }
 };
 
 const ARENA_THEMES = {
@@ -1317,10 +1337,17 @@ const SPAWN_POINTS = [
 
 const gameState = {
   running: false,
-  mode: 'showdown',
+  mode: 'survival',
   fillBots: true,
   timeRemaining: 120,
   poisonRadius: 1180,
+  wave: 1,
+  waveMonstersToSpawn: 0,
+  waveSpawnTimer: 0,
+  waveBannerText: '',
+  waveBannerTimer: 0,
+  totalMonstersKilled: 0,
+  monsters: [],
   fighters: [],
   projectiles: [],
   crates: [],
@@ -1346,7 +1373,7 @@ function getSpawnForPlayerId(id) {
   return SPAWN_POINTS[idx % SPAWN_POINTS.length];
 }
 
-function createFighterObject(id, heroId, isBot, spawnIndex) {
+function createFighterObject(id, heroId, isBot, spawnIndex, mode) {
   const h = HEROES.find(x => x.id === heroId) || HEROES[0];
   const sp = SPAWN_POINTS[spawnIndex % SPAWN_POINTS.length];
   return {
@@ -1373,6 +1400,11 @@ function createFighterObject(id, heroId, isBot, spawnIndex) {
     dead: false,
     respawnTimer: 0,
     shieldTimer: 0,
+    shieldHits: mode === 'survival' ? 2 : 0, // Multi-hit shield charges!
+    multiShotLevel: 0, // 0=normal, 1=3 rows, 2=5 rows, 3=7 rows
+    fireRateLevel: 0,  // each level boosts reload speed +25%
+    pierceLevel: 0,    // projectiles pierce through enemies
+    speedUpLevel: 0,
     speedBoostTimer: 0,
     hitFlash: 0,
     walkPhase: 0,
@@ -1398,7 +1430,7 @@ function ensureRemoteHumanFighter(playerId, heroId, x, y) {
   // If a bot is occupying a slot, replace the last bot with this real human player!
   const botIdx = gameState.fighters.findIndex(el => el.isBot);
   const spawnIdx = Object.keys(lobbyPlayers).sort().indexOf(playerId);
-  const newF = createFighterObject(playerId, heroId, false, spawnIdx >= 0 ? spawnIdx : gameState.fighters.length);
+  const newF = createFighterObject(playerId, heroId, false, spawnIdx >= 0 ? spawnIdx : gameState.fighters.length, gameState.mode);
   if (typeof x === 'number' && typeof y === 'number') {
     newF.x = x; newF.y = y; newF.tx = x; newF.ty = y;
   }
@@ -1486,15 +1518,38 @@ function handleNetMessage(msg) {
     f.kills = msg.k || 0;
     f.dead = !!msg.d;
     f.shieldTimer = msg.sh ? 0.4 : 0;
+    if (msg.shHits !== undefined) f.shieldHits = msg.shHits;
+    if (msg.msLvl !== undefined) f.multiShotLevel = msg.msLvl;
+    if (msg.frLvl !== undefined) f.fireRateLevel = msg.frLvl;
+    if (msg.prLvl !== undefined) f.pierceLevel = msg.prLvl;
     if (msg.sp) {
       f.speechText = msg.sp;
       f.speechTimer = 1.5;
     }
   } else if (msg.type === 'world_tick') {
     if (!gameState.running) return;
-    // Apply coordinator's timer, poison ring, crates, pickups, and AI bots
     gameState.timeRemaining = msg.t;
     gameState.poisonRadius = msg.pr;
+    if (msg.w) gameState.wave = msg.w;
+    if (msg.mk !== undefined) gameState.totalMonstersKilled = msg.mk;
+    if (msg.monsters && !isRoomCoordinator()) {
+      const activeMIds = new Set(msg.monsters.map(m => m.id));
+      gameState.monsters = gameState.monsters.filter(m => activeMIds.has(m.id));
+      msg.monsters.forEach(sm => {
+        let lm = gameState.monsters.find(x => x.id === sm.id);
+        if (!lm) {
+          lm = {
+            id: sm.id, type: sm.type, def: MONSTER_TYPES[sm.type] || MONSTER_TYPES.goblin,
+            x: sm.x, y: sm.y, tx: sm.x, ty: sm.y, vx: sm.vx, vy: sm.vy,
+            hp: sm.hp, maxHp: sm.mhp, hitFlash: 0
+          };
+          gameState.monsters.push(lm);
+        } else {
+          lm.tx = sm.x; lm.ty = sm.y; lm.vx = sm.vx; lm.vy = sm.vy;
+          lm.hp = sm.hp; lm.maxHp = sm.mhp;
+        }
+      });
+    }
     if (msg.crates) {
       gameState.crates = msg.crates.map(c => ({ id: c.id, x: c.x, y: c.y, hp: c.hp, maxHp: 2200, hitFlash: 0 }));
     }
@@ -1507,7 +1562,7 @@ function handleNetMessage(msg) {
       msg.bots.forEach(b => {
         let bf = gameState.fighters.find(x => x.id === b.id);
         if (!bf && gameState.fighters.length < 4) {
-          bf = createFighterObject(b.id, b.heroId, true, 3);
+          bf = createFighterObject(b.id, b.heroId, true, 3, gameState.mode);
           bf.x = b.x; bf.y = b.y;
           gameState.fighters.push(bf);
         }
@@ -1561,6 +1616,11 @@ function handleNetMessage(msg) {
     } else if (msg.act === 'pickup_taken') {
       const pIdx = gameState.pickups.findIndex(p => p.id === msg.pickupId || (Math.hypot(p.x - msg.x, p.y - msg.y) < 30));
       if (pIdx !== -1) gameState.pickups.splice(pIdx, 1);
+    } else if (msg.act === 'hit_monster') {
+      const m = gameState.monsters.find(x => x.id === msg.monsterId);
+      if (m) damageMonster(m, msg.dmg, msg.actorId, false);
+    } else if (msg.act === 'next_wave') {
+      startSurvivalWave(msg.wave);
     } else if (msg.act === 'match_end') {
       const wf = gameState.fighters.find(x => x.id === msg.winnerId) || gameState.fighters[0];
       if (wf && gameState.running) finishMatch(wf, false);
@@ -1747,7 +1807,10 @@ function startMatchLocal(mode, fillBots) {
   gameState.pickups = [];
   gameState.pets = [];
   gameState.particles = [];
+  gameState.monsters = [];
   gameState.winner = null;
+  gameState.wave = 1;
+  gameState.totalMonstersKilled = 0;
 
   buildArenaMap();
 
@@ -1757,20 +1820,103 @@ function startMatchLocal(mode, fillBots) {
 
   gameState.fighters = [];
   humanIds.slice(0, 4).forEach((id, idx) => {
-    gameState.fighters.push(createFighterObject(id, lobbyPlayers[id].heroId, false, idx));
+    gameState.fighters.push(createFighterObject(id, lobbyPlayers[id].heroId, false, idx, gameState.mode));
   });
 
   if (gameState.fillBots) {
     while (gameState.fighters.length < 4) {
       const idx = gameState.fighters.length;
       const bHero = botHeroPool[idx % botHeroPool.length] || HEROES[idx % HEROES.length].id;
-      gameState.fighters.push(createFighterObject('bot_' + idx, bHero, true, idx));
+      gameState.fighters.push(createFighterObject('bot_' + idx, bHero, true, idx, gameState.mode));
     }
+  }
+
+  if (gameState.mode === 'survival') {
+    // In Co-op Survival, spawn the family together near the center of the arena!
+    const coopSpawns = [
+      { x: 720, y: 720 }, { x: 880, y: 720 },
+      { x: 720, y: 880 }, { x: 880, y: 880 }
+    ];
+    gameState.fighters.forEach((f, idx) => {
+      const sp = coopSpawns[idx % coopSpawns.length];
+      f.x = sp.x; f.y = sp.y; f.tx = sp.x; f.ty = sp.y;
+      f.shieldHits = 3; // Everyone starts Survival with a 3-hit energy shield!
+    });
+    startSurvivalWave(1);
   }
 
   resizeCanvas();
   lastFrameTime = performance.now();
   requestAnimationFrame(gameLoop);
+}
+
+function startSurvivalWave(waveNum) {
+  gameState.wave = waveNum;
+  const diffMult = (BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.easy).hpMult;
+  gameState.waveMonstersToSpawn = 6 + waveNum * 4;
+  gameState.waveSpawnTimer = 0.5;
+  gameState.waveBannerText = waveNum % 3 === 0
+    ? `🌊 ВОЛНА ${waveNum} • ИДЁТ МЕГА-БОСС! 🐉`
+    : `🌊 ВОЛНА ${waveNum} • НАШЕСТВИЕ МОНСТРОВ!`;
+  gameState.waveBannerTimer = 3.2;
+  playSfx('super');
+
+  // Revive any knocked-out family members at the start of a new wave!
+  gameState.fighters.forEach(f => {
+    if (f.dead) {
+      f.dead = false;
+      f.hp = Math.round(f.maxHp * 0.75);
+      f.shieldHits = Math.max(f.shieldHits, 2);
+      f.x = WORLD_W / 2 + (Math.random() - 0.5) * 160;
+      f.y = WORLD_H / 2 + (Math.random() - 0.5) * 160;
+      f.tx = f.x; f.ty = f.y;
+    } else {
+      f.hp = Math.min(f.maxHp, f.hp + 800);
+    }
+  });
+}
+
+function spawnMonsterFromEdge(waveNum) {
+  const diffCfg = BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.easy;
+  // Pick a random edge around the arena perimeter
+  const side = Math.floor(Math.random() * 4);
+  let mx = 100, my = 100;
+  if (side === 0) { mx = 90 + Math.random() * (WORLD_W - 180); my = 90; }
+  else if (side === 1) { mx = 90 + Math.random() * (WORLD_W - 180); my = WORLD_H - 90; }
+  else if (side === 2) { mx = 90; my = 90 + Math.random() * (WORLD_H - 180); }
+  else { mx = WORLD_W - 90; my = 90 + Math.random() * (WORLD_H - 180); }
+
+  let typeKey = 'goblin';
+  const r = Math.random();
+  if (waveNum % 3 === 0 && gameState.waveMonstersToSpawn === 1) {
+    typeKey = 'boss';
+  } else if (waveNum >= 4 && r < 0.22) {
+    typeKey = 'golem';
+  } else if (waveNum >= 2 && r < 0.48) {
+    typeKey = 'shooter';
+  } else if (r < 0.72) {
+    typeKey = 'bat';
+  }
+
+  const mDef = MONSTER_TYPES[typeKey];
+  const waveScale = 1 + (waveNum - 1) * 0.15;
+  const maxHp = Math.round(mDef.hp * waveScale * diffCfg.hpMult);
+
+  gameState.monsters.push({
+    id: 'm_' + Date.now() + '_' + Math.floor(Math.random() * 9999),
+    type: typeKey,
+    def: mDef,
+    x: mx,
+    y: my,
+    tx: mx,
+    ty: my,
+    vx: 0,
+    vy: 0,
+    hp: maxHp,
+    maxHp: maxHp,
+    attackCooldown: 1.0 + Math.random(),
+    hitFlash: 0
+  });
 }
 
 function rematch() {
@@ -1905,15 +2051,25 @@ function getMyFighter() {
 function getAutoAimAngle(f) {
   let bestDist = 9999;
   let bestAngle = f.angle;
-  gameState.fighters.forEach(other => {
-    if (other.id !== f.id && !other.dead) {
-      const d = Math.hypot(other.x - f.x, other.y - f.y);
+  if (gameState.mode === 'survival') {
+    gameState.monsters.forEach(m => {
+      const d = Math.hypot(m.x - f.x, m.y - f.y);
       if (d < bestDist) {
         bestDist = d;
-        bestAngle = Math.atan2(other.y - f.y, other.x - f.x);
+        bestAngle = Math.atan2(m.y - f.y, m.x - f.x);
       }
-    }
-  });
+    });
+  } else {
+    gameState.fighters.forEach(other => {
+      if (other.id !== f.id && !other.dead) {
+        const d = Math.hypot(other.x - f.x, other.y - f.y);
+        if (d < bestDist) {
+          bestDist = d;
+          bestAngle = Math.atan2(other.y - f.y, other.x - f.x);
+        }
+      }
+    });
+  }
   if (bestDist > 600) {
     gameState.crates.forEach(c => {
       const d = Math.hypot(c.x - f.x, c.y - f.y);
@@ -1962,19 +2118,29 @@ function spawnProjectilesLocal(f, angle) {
   const botDmgMult = f.isBot ? ((BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.normal).dmgMult) : 1.0;
   const dmgScale = (1 + (f.powerCubes || 0) * 0.12) * botDmgMult;
   const treatIcons = ['🎂', '🥤', '🍦', '🍩', '🧁', '🍫'];
-  const count = h.projCount;
+  const extraRows = (f.multiShotLevel || 0) * 2; // Level 1 = +2 rows (3 total!), Level 2 = 5 rows!
+  const count = h.projCount + extraRows;
+  const totalSpread = h.spread + (f.multiShotLevel || 0) * 0.28;
+  const pierceBonus = 1 + (f.pierceLevel || 0) * 0.22;
+
   for (let i = 0; i < count; i++) {
-    const offset = count === 1 ? 0 : (i - (count - 1) / 2) * (h.spread / (count - 1 || 1));
+    const offset = count === 1 ? 0 : (i - (count - 1) / 2) * (totalSpread / (count - 1 || 1));
     const a = angle + offset;
+    // Lateral offset for parallel 3-row feel
+    const perpX = -Math.sin(a) * ((i - (count - 1) / 2) * 8);
+    const perpY =  Math.cos(a) * ((i - (count - 1) / 2) * 8);
     gameState.projectiles.push({
       ownerId: f.id,
-      x: f.x + Math.cos(a) * 32,
-      y: f.y + Math.sin(a) * 32,
+      isMonsterProj: false,
+      x: f.x + Math.cos(a) * 32 + perpX,
+      y: f.y + Math.sin(a) * 32 + perpY,
       vx: Math.cos(a) * h.projSpeed,
       vy: Math.sin(a) * h.projSpeed,
-      damage: Math.round(h.damage * dmgScale),
-      maxDist: h.range,
+      damage: Math.round(h.damage * dmgScale * pierceBonus),
+      maxDist: h.range + (f.pierceLevel || 0) * 45,
       traveled: 0,
+      pierceLeft: f.pierceLevel || 0,
+      hitIds: {},
       color: h.color,
       type: h.projType,
       emoji: h.projType === 'treats' ? treatIcons[Math.floor(Math.random() * treatIcons.length)] : null,
@@ -2133,7 +2299,7 @@ function updateGame(dt) {
     const mlen = Math.hypot(mx, my);
     if (mlen > 1) { mx /= mlen; my /= mlen; }
 
-    const spd = me.hero.speed * (me.speedBoostTimer > 0 ? 1.45 : 1.0);
+    const spd = me.hero.speed * (1 + (me.speedUpLevel || 0) * 0.10) * (me.speedBoostTimer > 0 ? 1.45 : 1.0);
     me.vx = mx * spd;
     me.vy = my * spd;
     moveWithWallCollisions(me, dt);
@@ -2178,7 +2344,7 @@ function updateGame(dt) {
     const isSimulatedHere = isLocalMe || (f.isBot && coordinator);
 
     if (f.dead) {
-      if (isSimulatedHere && gameState.mode === 'bounty') {
+      if (isSimulatedHere && (gameState.mode === 'bounty' || gameState.mode === 'survival')) {
         f.respawnTimer -= dt;
         if (f.respawnTimer <= 0) {
           f.dead = false;
@@ -2194,10 +2360,11 @@ function updateGame(dt) {
     }
 
     if (isSimulatedHere) {
-      // Ammo reload & out-of-combat heal
+      // Ammo reload (boosted by fireRateLevel upgrades!) & out-of-combat heal
+      const effectiveReloadMs = f.hero.reloadMs / (1 + (f.fireRateLevel || 0) * 0.28);
       if (f.ammo < f.maxAmmo) {
         f.ammoReloadTimer += dt * 1000;
-        if (f.ammoReloadTimer >= f.hero.reloadMs) {
+        if (f.ammoReloadTimer >= effectiveReloadMs) {
           f.ammoReloadTimer = 0;
           f.ammo = Math.min(f.maxAmmo, f.ammo + 1);
         }
@@ -2257,12 +2424,37 @@ function updateGame(dt) {
         }
       }
 
-      // Pickup collection
+      // Pickup & Upgrade collection
       for (let i = gameState.pickups.length - 1; i >= 0; i--) {
         const p = gameState.pickups[i];
-        if (Math.hypot(p.x - f.x, p.y - f.y) < 42) {
+        if (Math.hypot(p.x - f.x, p.y - f.y) < 44) {
           playSfx('powerup');
-          if (p.type === 'cube') {
+          if (p.type === 'multishot') {
+            f.multiShotLevel = Math.min(3, (f.multiShotLevel || 0) + 1);
+            f.speechText = '🔱 СТРЕЛЬБА В ' + (1 + f.multiShotLevel * 2) + ' РЯДА!';
+            f.speechTimer = 2.0;
+          } else if (p.type === 'firerate') {
+            f.fireRateLevel = Math.min(6, (f.fireRateLevel || 0) + 1);
+            f.maxAmmo = Math.min(6, 3 + Math.floor(f.fireRateLevel / 2));
+            f.ammo = f.maxAmmo;
+            f.speechText = '🔥 СКОРОСТРЕЛЬНОСТЬ +' + (f.fireRateLevel * 28) + '%!';
+            f.speechTimer = 2.0;
+          } else if (p.type === 'hitshield') {
+            f.shieldHits = Math.min(9, (f.shieldHits || 0) + 3);
+            f.speechText = '🛡️ ЩИТ: ' + f.shieldHits + ' ЗАРЯДОВ!';
+            f.speechTimer = 2.0;
+          } else if (p.type === 'pierce') {
+            f.pierceLevel = Math.min(4, (f.pierceLevel || 0) + 1);
+            f.powerCubes += 1;
+            f.speechText = '💥 ПРОБИВНЫЕ ПУЛИ + УРОН!';
+            f.speechTimer = 2.0;
+          } else if (p.type === 'speed_heal') {
+            f.speedUpLevel = Math.min(4, (f.speedUpLevel || 0) + 1);
+            f.maxHp += 350;
+            f.hp = Math.min(f.maxHp, f.hp + 1600);
+            f.speechText = '❤️ +1600 ХП И СКОРОСТЬ!';
+            f.speechTimer = 2.0;
+          } else if (p.type === 'cube') {
             f.powerCubes += 1;
             f.maxHp += 400;
             f.hp = Math.min(f.maxHp, f.hp + 550);
@@ -2298,25 +2490,38 @@ function updateGame(dt) {
       continue;
     }
     let target = null;
+    let isMonsterTarget = false;
     let bestD = 9999;
-    gameState.fighters.forEach(f => {
-      if (f.id !== pet.ownerId && !f.dead) {
-        const d = Math.hypot(f.x - pet.x, f.y - pet.y);
-        if (d < bestD) { bestD = d; target = f; }
-      }
-    });
+    if (gameState.mode === 'survival') {
+      gameState.monsters.forEach(m => {
+        const d = Math.hypot(m.x - pet.x, m.y - pet.y);
+        if (d < bestD) { bestD = d; target = m; isMonsterTarget = true; }
+      });
+    } else {
+      gameState.fighters.forEach(f => {
+        if (f.id !== pet.ownerId && !f.dead) {
+          const d = Math.hypot(f.x - pet.x, f.y - pet.y);
+          if (d < bestD) { bestD = d; target = f; }
+        }
+      });
+    }
     if (target) {
       const a = Math.atan2(target.y - pet.y, target.x - pet.x);
       pet.x += Math.cos(a) * pet.speed * dt;
       pet.y += Math.sin(a) * pet.speed * dt;
-      if (bestD < 44 && pet.biteCooldown <= 0) {
-        pet.biteCooldown = 0.55;
-        if (pet.ownerId === myPlayerId || (isRoomCoordinator() && pet.ownerId.startsWith('bot_'))) {
+      if (bestD < 48 && pet.biteCooldown <= 0) {
+        pet.biteCooldown = 0.50;
+        if (isMonsterTarget) {
+          damageMonster(target, pet.damage, pet.ownerId, true);
+        } else if (pet.ownerId === myPlayerId || (isRoomCoordinator() && pet.ownerId.startsWith('bot_'))) {
           applyDamageToFighter(target, pet.damage, pet.ownerId, true);
         }
       }
     }
   }
+
+  // 4b. Update Co-op Survival Monsters
+  updateSurvivalMonsters(dt, coordinator);
 
   // 5. Update Projectiles
   for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
@@ -2372,14 +2577,40 @@ function updateGame(dt) {
       }
     }
 
+    // Check Monsters (in Co-op Survival mode)
+    if (!remove && gameState.mode === 'survival' && !pr.isMonsterProj) {
+      for (let mIdx = gameState.monsters.length - 1; mIdx >= 0; mIdx--) {
+        const m = gameState.monsters[mIdx];
+        if (pr.hitIds && pr.hitIds[m.id]) continue;
+        const mRad = (m.def ? m.def.radius : 24);
+        if (Math.hypot(pr.x - m.x, pr.y - m.y) < mRad + pr.radius) {
+          if (pr.hitIds) pr.hitIds[m.id] = true;
+          spawnHitParticles(pr.x, pr.y, pr.color, 7);
+          if (isMyProj) {
+            damageMonster(m, pr.damage, pr.ownerId, true);
+          } else {
+            m.hitFlash = 0.15;
+          }
+          if (pr.pierceLeft && pr.pierceLeft > 0) {
+            pr.pierceLeft -= 1;
+          } else {
+            remove = true;
+          }
+          break;
+        }
+      }
+    }
+
     // Check Fighters
     if (!remove) {
       for (const f of gameState.fighters) {
         if (f.id !== pr.ownerId && !f.dead) {
-          if (Math.hypot(pr.x - f.x, pr.y - f.y) < 30 + pr.radius) {
+          // In Survival, only monster projectiles can hit family fighters!
+          if (gameState.mode === 'survival' && !pr.isMonsterProj) continue;
+          if (Math.hypot(pr.x - f.x, pr.y - f.y) < 28 + pr.radius) {
             remove = true;
             spawnHitParticles(pr.x, pr.y, pr.color, 8);
-            if (isMyProj) {
+            if (pr.isMonsterProj || isMyProj) {
               applyDamageToFighter(f, pr.damage, pr.ownerId, true);
             } else {
               f.hitFlash = 0.18;
@@ -2425,6 +2656,10 @@ function updateGame(dt) {
       k: me.kills,
       d: me.dead,
       sh: me.shieldTimer > 0,
+      shHits: me.shieldHits || 0,
+      msLvl: me.multiShotLevel || 0,
+      frLvl: me.fireRateLevel || 0,
+      prLvl: me.pierceLevel || 0,
       sp: me.speechTimer > 0 ? me.speechText : null
     });
   }
@@ -2445,13 +2680,26 @@ function updateGame(dt) {
       type: 'world_tick',
       t: Number(gameState.timeRemaining.toFixed(1)),
       pr: Math.round(gameState.poisonRadius),
+      w: gameState.wave,
+      mk: gameState.totalMonstersKilled,
       crates: gameState.crates.map(c => ({ id: c.id, x: c.x, y: c.y, hp: c.hp })),
       pickups: gameState.pickups,
-      bots: botsList
+      bots: botsList,
+      monsters: gameState.monsters.map(m => ({
+        id: m.id, type: m.type,
+        x: Math.round(m.x), y: Math.round(m.y),
+        vx: Math.round(m.vx || 0), vy: Math.round(m.vy || 0),
+        hp: Math.round(m.hp), mhp: m.maxHp
+      }))
     });
 
     const alive = gameState.fighters.filter(f => !f.dead);
-    if (gameState.mode === 'showdown') {
+    if (gameState.mode === 'survival') {
+      if (alive.length === 0) {
+        const bestFighter = [...gameState.fighters].sort((a, b) => b.kills - a.kills)[0] || gameState.fighters[0];
+        finishMatch(bestFighter, true);
+      }
+    } else if (gameState.mode === 'showdown') {
       if ((gameState.fighters.length > 1 && alive.length <= 1) || gameState.timeRemaining <= 0) {
         const winFighter = alive.sort((a, b) => b.hp - a.hp)[0] || gameState.fighters[0];
         finishMatch(winFighter, true);
@@ -2463,7 +2711,166 @@ function updateGame(dt) {
   }
 }
 
+
+function damageMonster(m, dmg, attackerId, broadcastNet) {
+  m.hp -= dmg;
+  m.hitFlash = 0.15;
+  playSfx('hit');
+
+  const attacker = gameState.fighters.find(f => f.id === attackerId);
+  if (attacker && !attacker.dead) {
+    attacker.superCharge = Math.min(100, attacker.superCharge + 10);
+  }
+
+  if (broadcastNet) {
+    sendNetMessage({
+      type: 'action',
+      act: 'hit_monster',
+      monsterId: m.id,
+      dmg: dmg,
+      actorId: attackerId
+    });
+  }
+
+  if (m.hp <= 0) {
+    const idx = gameState.monsters.findIndex(x => x.id === m.id);
+    if (idx !== -1) gameState.monsters.splice(idx, 1);
+    gameState.totalMonstersKilled += 1;
+    if (attacker) {
+      attacker.kills += 1;
+      attacker.stars += (m.type === 'boss' ? 10 : 1);
+    }
+    playSfx('ko');
+    spawnHitParticles(m.x, m.y, m.def ? m.def.color : '#2ecc71', 12);
+
+    // Coordinator spawns upgrade drops from defeated monsters!
+    if (isRoomCoordinator()) {
+      const dropRoll = Math.random();
+      const isBoss = (m.type === 'boss');
+      if (isBoss || dropRoll < 0.58) {
+        const upgKeys = ['multishot', 'firerate', 'hitshield', 'pierce', 'speed_heal'];
+        const dropCount = isBoss ? 3 : 1;
+        for (let d = 0; d < dropCount; d++) {
+          const uType = upgKeys[Math.floor(Math.random() * upgKeys.length)];
+          const dropId = 'up_' + Date.now() + '_' + Math.floor(Math.random() * 99999);
+          const dx = m.x + (d - (dropCount - 1) / 2) * 38;
+          const dy = m.y;
+          gameState.pickups.push({ id: dropId, x: dx, y: dy, type: uType });
+        }
+      }
+    }
+  }
+}
+
+function updateSurvivalMonsters(dt, coordinator) {
+  if (gameState.waveBannerTimer > 0) gameState.waveBannerTimer -= dt;
+  if (gameState.mode !== 'survival') return;
+
+  const diffCfg = BOT_DIFF_CONFIG[botDifficulty] || BOT_DIFF_CONFIG.easy;
+
+  if (coordinator) {
+    // Spawn remaining monsters for this wave
+    if (gameState.waveMonstersToSpawn > 0) {
+      gameState.waveSpawnTimer -= dt;
+      if (gameState.waveSpawnTimer <= 0) {
+        gameState.waveSpawnTimer = Math.max(0.45, 1.4 - gameState.wave * 0.07);
+        gameState.waveMonstersToSpawn -= 1;
+        spawnMonsterFromEdge(gameState.wave);
+      }
+    } else if (gameState.monsters.length === 0) {
+      // Wave cleared! Start next wave!
+      if (gameState.wave >= 10) {
+        const bestHero = [...gameState.fighters].sort((a, b) => b.kills - a.kills)[0] || gameState.fighters[0];
+        finishMatch(bestHero, true);
+        return;
+      } else {
+        startSurvivalWave(gameState.wave + 1);
+        sendNetMessage({ type: 'action', act: 'next_wave', wave: gameState.wave });
+      }
+    }
+  }
+
+  // Update each monster
+  gameState.monsters.forEach(m => {
+    if (m.hitFlash > 0) m.hitFlash -= dt;
+    m.attackCooldown = (m.attackCooldown || 0) - dt;
+
+    if (!coordinator) {
+      // Smooth 60 FPS interpolation on client phones
+      m.tx += (m.vx || 0) * dt;
+      m.ty += (m.vy || 0) * dt;
+      m.x += (m.tx - m.x) * Math.min(1, dt * 14);
+      m.y += (m.ty - m.y) * Math.min(1, dt * 14);
+      return;
+    }
+
+    // Coordinator simulates monster movement toward nearest living family hero
+    let target = null;
+    let bestD = 9999;
+    gameState.fighters.forEach(f => {
+      if (!f.dead) {
+        const d = Math.hypot(f.x - m.x, f.y - m.y);
+        if (d < bestD) { bestD = d; target = f; }
+      }
+    });
+
+    if (target) {
+      const a = Math.atan2(target.y - m.y, target.x - m.x);
+      const spd = (m.def ? m.def.speed : 140) * diffCfg.speedMult;
+      const stopDist = (m.def && m.def.ranged) ? 280 : 28;
+
+      if (bestD > stopDist) {
+        m.vx = Math.cos(a) * spd;
+        m.vy = Math.sin(a) * spd;
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+      } else {
+        m.vx = 0; m.vy = 0;
+      }
+
+      // Melee bite or Ranged plasma shot
+      if (m.attackCooldown <= 0) {
+        const scaledDmg = Math.round((m.def ? m.def.damage : 200) * diffCfg.dmgMult);
+        if (m.def && m.def.ranged && bestD < 480) {
+          m.attackCooldown = m.type === 'boss' ? 1.3 : 2.1;
+          const count = m.type === 'boss' ? 5 : 1;
+          for (let i = 0; i < count; i++) {
+            const sa = a + (i - (count - 1) / 2) * 0.28;
+            gameState.projectiles.push({
+              ownerId: m.id,
+              isMonsterProj: true,
+              x: m.x, y: m.y,
+              vx: Math.cos(sa) * 440,
+              vy: Math.sin(sa) * 440,
+              damage: scaledDmg,
+              maxDist: 480,
+              traveled: 0,
+              color: '#ff3838',
+              type: 'monster_orb',
+              radius: 11
+            });
+          }
+        } else if (bestD < (m.def ? m.def.radius : 24) + 34) {
+          m.attackCooldown = 1.1;
+          applyDamageToFighter(target, scaledDmg, m.id, true);
+        }
+      }
+    }
+  });
+}
+
 function applyDamageToFighter(target, dmg, attackerId, broadcastNet) {
+  // No friendly fire between family members in Co-op Survival!
+  if (gameState.mode === 'survival' && attackerId && !attackerId.startsWith('m_')) {
+    return;
+  }
+  if (target.shieldHits && target.shieldHits > 0) {
+    target.shieldHits -= 1;
+    target.hitFlash = 0.12;
+    spawnHitParticles(target.x, target.y, '#00e5ff', 7);
+    playSfx('powerup');
+    return;
+  }
   const actualDmg = target.shieldTimer > 0 ? Math.round(dmg * 0.35) : dmg;
   target.hitFlash = 0.18;
   playSfx('hit');
@@ -2496,7 +2903,7 @@ function handleKnockout(victim, attacker) {
   if (victim.dead) return;
   victim.dead = true;
   victim.hp = 0;
-  victim.respawnTimer = 3.2;
+  victim.respawnTimer = gameState.mode === 'survival' ? 7.5 : 3.2;
   playSfx('ko');
 
   const dropId = 'pk_' + Math.floor(Math.random() * 999999);
@@ -2524,16 +2931,23 @@ function updateBotAI(bot, dt) {
   const cx = WORLD_W / 2, cy = WORLD_H / 2;
   const distCenter = Math.hypot(bot.x - cx, bot.y - cy);
 
-  // Find closest visible enemy (ignoring players hidden in bushes unless very close < 110px)
+  // In Survival mode, allied family bots target monsters! Otherwise they target enemy fighters.
   let bestTarget = null;
   let bestD = 9999;
-  gameState.fighters.forEach(other => {
-    if (other.id !== bot.id && !other.dead) {
-      const d = Math.hypot(other.x - bot.x, other.y - bot.y);
-      if (isFighterInBush(other) && d > 110) return;
-      if (d < bestD) { bestD = d; bestTarget = other; }
-    }
-  });
+  if (gameState.mode === 'survival') {
+    gameState.monsters.forEach(m => {
+      const d = Math.hypot(m.x - bot.x, m.y - bot.y);
+      if (d < bestD) { bestD = d; bestTarget = m; }
+    });
+  } else {
+    gameState.fighters.forEach(other => {
+      if (other.id !== bot.id && !other.dead) {
+        const d = Math.hypot(other.x - bot.x, other.y - bot.y);
+        if (isFighterInBush(other) && d > 110) return;
+        if (d < bestD) { bestD = d; bestTarget = other; }
+      }
+    });
+  }
 
   if (gameState.mode === 'showdown' && distCenter > gameState.poisonRadius - 110) {
     bot.botMoveAngle = Math.atan2(cy - bot.y, cx - bot.x);
@@ -2828,20 +3242,37 @@ function renderGame() {
     ctx.restore();
   });
 
-  // 5. Pickups
-  const pulse = 1 + Math.sin(performance.now() * 0.008) * 0.1;
+  // 5. Pickups & Weapon/Shield Upgrades!
+  const pulse = 1 + Math.sin(performance.now() * 0.008) * 0.12;
   gameState.pickups.forEach(p => {
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.scale(pulse, pulse);
+    const upg = UPGRADE_TYPES[p.type];
     ctx.beginPath();
-    ctx.arc(0, 0, 20, 0, Math.PI * 2);
-    ctx.fillStyle = p.type === 'cube' ? 'rgba(56,239,125,0.35)' : 'rgba(255,204,0,0.35)';
+    ctx.arc(0, 0, 22, 0, Math.PI * 2);
+    ctx.fillStyle = upg ? upg.color : (p.type === 'cube' ? '#38ef7d' : '#ffcc00');
+    ctx.globalAlpha = 0.35;
     ctx.fill();
+    ctx.globalAlpha = 1.0;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = upg ? upg.color : '#fff';
+    ctx.stroke();
+
     ctx.font = '24px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(p.type === 'cube' ? '❇️' : '🌯', 0, 0);
+    const icon = upg ? upg.emoji : (p.type === 'cube' ? '❇️' : '🌯');
+    ctx.fillText(icon, 0, 0);
+
+    if (upg) {
+      ctx.font = '900 10px sans-serif';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      ctx.strokeText(upg.label, 0, -28);
+      ctx.fillStyle = upg.color;
+      ctx.fillText(upg.label, 0, -28);
+    }
     ctx.restore();
   });
 
@@ -2881,6 +3312,51 @@ function renderGame() {
     ctx.restore();
   });
 
+  // 7b. Co-op Survival Monsters!
+  gameState.monsters.forEach(m => {
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    const rad = m.def ? m.def.radius : 22;
+    const wobble = Math.sin(performance.now() * 0.012 + m.x) * 3;
+
+    // Shadow
+    ctx.beginPath();
+    ctx.ellipse(0, rad - 4, rad * 0.9, rad * 0.45, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fill();
+
+    // Monster Cartoon Body
+    ctx.beginPath();
+    ctx.arc(0, wobble, rad, 0, Math.PI * 2);
+    ctx.fillStyle = m.hitFlash > 0 ? '#ffffff' : (m.def ? m.def.color : '#2ecc71');
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#111';
+    ctx.stroke();
+
+    // Monster Emoji Face
+    ctx.font = `${Math.round(rad * 1.25)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(m.def ? m.def.emoji : '👾', 0, wobble + 2);
+
+    // Monster HP Bar
+    const bw = Math.max(42, rad * 1.6);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-bw / 2 - 1, -rad - 15, bw + 2, 8);
+    ctx.fillStyle = m.type === 'boss' ? '#ff0055' : '#ff4757';
+    ctx.fillRect(-bw / 2, -rad - 14, bw * Math.max(0, m.hp / m.maxHp), 6);
+
+    if (m.type === 'boss') {
+      ctx.font = '900 13px sans-serif';
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+      ctx.strokeText('👑 МЕГА-БОСС', 0, -rad - 22);
+      ctx.fillStyle = '#ffee00';
+      ctx.fillText('👑 МЕГА-БОСС', 0, -rad - 22);
+    }
+    ctx.restore();
+  });
+
   // 8. Fighters
   const useComicFilter = document.getElementById('comic-filter-toggle').checked;
 
@@ -2915,13 +3391,13 @@ function renderGame() {
       ctx.restore();
     }
 
-    if (f.shieldTimer > 0) {
+    if (f.shieldTimer > 0 || (f.shieldHits && f.shieldHits > 0)) {
       ctx.beginPath();
-      ctx.arc(0, -4, 44, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.25)';
+      ctx.arc(0, -4, 45, 0, Math.PI * 2);
+      ctx.fillStyle = f.shieldHits > 0 ? 'rgba(0, 229, 255, 0.22)' : 'rgba(255, 215, 0, 0.25)';
       ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = f.shieldHits > 0 ? '#00e5ff' : '#ffd700';
       ctx.stroke();
     }
 
@@ -3077,7 +3553,10 @@ function renderGame() {
     ctx.lineWidth = 4;
     ctx.strokeStyle = '#000';
     const tag = f.isBot ? '🤖' : (f.id === me.id ? '👑' : '📱');
-    const label = `${tag}${f.hero.name} ${f.powerCubes > 0 ? '⚡' + f.powerCubes : ''} ⭐${f.stars}`;
+    const shBadge = (f.shieldHits && f.shieldHits > 0) ? ` 🛡️${f.shieldHits}` : '';
+    const msBadge = (f.multiShotLevel && f.multiShotLevel > 0) ? ` 🔱x${1 + f.multiShotLevel * 2}` : '';
+    const frBadge = (f.fireRateLevel && f.fireRateLevel > 0) ? ` 🔥+${f.fireRateLevel}` : '';
+    const label = `${tag}${f.hero.name}${shBadge}${msBadge}${frBadge}`;
     ctx.strokeText(label, 0, -68);
     ctx.fillStyle = f.id === me.id ? '#38ef7d' : '#ffffff';
     ctx.fillText(label, 0, -68);
@@ -3222,12 +3701,31 @@ function renderGame() {
   drawJoystick(leftJoy, '#00e5ff', 110, H - 105, '🕹️ ХОДЬБА');
   drawJoystick(rightJoy, '#ff4757', W - 185, H - 105, '🎯 АТАКА');
 
+  if (gameState.waveBannerTimer > 0 && gameState.waveBannerText) {
+    ctx.save();
+    ctx.font = '900 26px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 6;
+    ctx.strokeText(gameState.waveBannerText, W / 2, 95);
+    ctx.fillStyle = '#ffee00';
+    ctx.fillText(gameState.waveBannerText, W / 2, 95);
+    ctx.restore();
+  }
+
   const aliveCount = gameState.fighters.filter(f => !f.dead).length;
-  document.getElementById('hud-alive-text').textContent =
-    gameState.mode === 'showdown' ? `Живых: ${aliveCount}/${gameState.fighters.length}` : `Звёзды: ⭐${me ? me.stars : 0}`;
-  const mins = String(Math.floor(gameState.timeRemaining / 60)).padStart(2, '0');
-  const secs = String(Math.floor(gameState.timeRemaining % 60)).padStart(2, '0');
-  document.getElementById('hud-timer').textContent = `${mins}:${secs}`;
+  if (gameState.mode === 'survival') {
+    document.getElementById('hud-mode-icon').textContent = '👾';
+    document.getElementById('hud-alive-text').textContent = `Волна ${gameState.wave} • Монстров: ${gameState.monsters.length + gameState.waveMonstersToSpawn}`;
+    document.getElementById('hud-timer').textContent = `Убито: 💀${gameState.totalMonstersKilled}`;
+  } else {
+    document.getElementById('hud-mode-icon').textContent = gameState.mode === 'showdown' ? '☠️' : '⭐';
+    document.getElementById('hud-alive-text').textContent =
+      gameState.mode === 'showdown' ? `Живых: ${aliveCount}/${gameState.fighters.length}` : `Звёзды: ⭐${me ? me.stars : 0}`;
+    const mins = String(Math.floor(gameState.timeRemaining / 60)).padStart(2, '0');
+    const secs = String(Math.floor(gameState.timeRemaining % 60)).padStart(2, '0');
+    document.getElementById('hud-timer').textContent = `${mins}:${secs}`;
+  }
 }
 
 function drawJoystick(joy, color, defaultX, defaultY, label) {
